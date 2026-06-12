@@ -3,13 +3,16 @@ package commands
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"agentsynch/store"
 )
 
 func Claim() {
-	agentID := fmt.Sprintf("agent-%d", time.Now().Unix())
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+	agentID := fmt.Sprintf("agent-%s-%d", hostname, os.Getpid())
 
 	db, err := store.Open()
 	if err != nil {
@@ -18,6 +21,7 @@ func Claim() {
 	}
 	defer db.Close()
 
+	// claim next avaiable task
 	task, err := store.ClaimTask(db, agentID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error claiming task: %v\n", err)

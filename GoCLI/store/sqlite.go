@@ -47,6 +47,12 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("could not open database: %w", err)
 	}
 
+	// WAL mode allows concurrent readers alongside a writer
+	if _, err := db.Exec(`PRAGMA journal_mode=WAL;`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("could not set WAL mode: %w", err)
+	}
+
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("could not initialize schema: %w", err)
@@ -54,6 +60,7 @@ func Open() (*sql.DB, error) {
 
 	return db, nil
 }
+
 
 func AddTask(db *sql.DB, task objects.Task) (int64, error) {
 
@@ -107,6 +114,46 @@ func ClaimTask(db *sql.DB, agentID string) (*objects.Task, error) {
 	t.ClaimedBy = &agentID
 	t.ClaimedAt = &claimedAt
 	return &t, nil
+}
+
+func FinishTask(db *sql.DB, id int64, output string) error {
+	finishedAt := time.Now().UTC().Format(time.RFC3339)
+	result, err := db.Exec(
+		`UPDATE tasks SET status = 'finished', finished_at = ?, output = ? WHERE id = ? AND status = 'claimed'`,
+		finishedAt, output, id,
+	)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("task-%d not found or not claimed", id)
+	}
+	return nil
+}
+
+func ErrorTask(db *sql.DB, id int64, errMsg string) error {
+	// TODO -- Add a way to check go back and solve errors
+
+	finishedAt := time.Now().UTC().Format(time.RFC3339)
+	result, err := db.Exec(
+		`UPDATE tasks SET status = 'error', finished_at = ?, error = ? WHERE id = ? AND status = 'claimed'`,
+		finishedAt, errMsg, id,
+	)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("task-%d not found or not claimed", id)
+	}
+	return nil
 }
 
 func ListTasks(db *sql.DB) ([]objects.Task, error) {
