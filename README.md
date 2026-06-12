@@ -1,5 +1,7 @@
 # AgentSynch
 
+1. keep any comments that already exist
+
 programming language: Go
 
 Format: 
@@ -30,3 +32,6 @@ You own all the infrastructure:
 ├── Heartbeat loop (detect dead agents, re-queue their work)
 ├── CLI / daemon process
 └── SQLite schema + migrations
+
+
+  go run main.go add "my first task" "description of what to do"
