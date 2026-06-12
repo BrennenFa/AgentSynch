@@ -14,6 +14,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "commands:")
 		fmt.Fprintln(os.Stderr, "  add    add a new task")
 		fmt.Fprintln(os.Stderr, "  list   list all tasks")
+		fmt.Fprintln(os.Stderr, "  claim  claim the next available task")
 		os.Exit(1)
 	}
 
@@ -22,6 +23,8 @@ func main() {
 		commands.Add()
 	case "list":
 		commands.List()
+	case "claim":
+		commands.Claim()
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		os.Exit(1)
