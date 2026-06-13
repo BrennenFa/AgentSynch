@@ -17,13 +17,15 @@ func Add() {
 
 	titleFlag := flags.String("title", "", "task title")
 	descFlag := flags.String("description", "", "task description")
+	planFlag := flags.String("plan", "", "optional plan for the task")
 	flags.Parse(os.Args[2:])
 
-	var title, description string
+	var title, description, planInput string
 
 	if *titleFlag != "" && *descFlag != "" {
 		title = *titleFlag
 		description = *descFlag
+		planInput = *planFlag
 	} else {
 		reader := bufio.NewReader(os.Stdin)
 
@@ -34,6 +36,16 @@ func Add() {
 		fmt.Print("description: ")
 		description, _ = reader.ReadString('\n')
 		description = strings.TrimSpace(description)
+
+		fmt.Print("plan (enter to skip): ")
+		planInput, _ = reader.ReadString('\n')
+		planInput = strings.TrimSpace(planInput)
+	}
+
+	// empty plan input = no plan
+	var plan *string
+	if planInput != "" {
+		plan = &planInput
 	}
 
 	db, err := store.Open()
@@ -47,6 +59,7 @@ func Add() {
 		Title:       title,
 		Description: description,
 		Status:      "available",
+		Plan:        plan,
 		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 

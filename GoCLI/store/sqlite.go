@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -23,7 +24,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at  TEXT NOT NULL,
     finished_at TEXT,
     output      TEXT,
-    error       TEXT
+    error       TEXT,
+    plan        TEXT
 );`
 
 func Open() (*sql.DB, error) {
@@ -66,9 +68,9 @@ func AddTask(db *sql.DB, task objects.Task) (int64, error) {
 
 	// insert tasks based on the given items
 	result, err := db.Exec(
-		`INSERT INTO tasks (title, description, status, claimed_by, claimed_at, created_at, finished_at, output, error)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		task.Title, task.Description, task.Status,
+		`INSERT INTO tasks (title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		task.Title, task.Description, task.Status, task.Plan,
 		task.ClaimedBy, task.ClaimedAt, task.CreatedAt,
 		task.FinishedAt, task.Output, task.Error,
 	)
@@ -79,7 +81,8 @@ func AddTask(db *sql.DB, task objects.Task) (int64, error) {
 }
 
 func ClaimTask(db *sql.DB, agentID string) (*objects.Task, error) {
-	tx, err := db.Begin()
+	// accquire db lock
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, err
 	}
@@ -156,9 +159,27 @@ func ErrorTask(db *sql.DB, id int64, errMsg string) error {
 	return nil
 }
 
+func WritePlan(db *sql.DB, id int64, plan string) error {
+	result, err := db.Exec(
+		`UPDATE tasks SET plan = ? WHERE id = ? AND status = 'claimed'`,
+		plan, id,
+	)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("task-%d not found or not claimed", id)
+	}
+	return nil
+}
+
 func ListTasks(db *sql.DB) ([]objects.Task, error) {
 	// query the rows needed
-	rows, err := db.Query(`SELECT id, title, description, status, claimed_by, claimed_at, created_at, finished_at, output, error FROM tasks ORDER BY id`)
+	rows, err := db.Query(`SELECT id, title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error FROM tasks ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +191,7 @@ func ListTasks(db *sql.DB) ([]objects.Task, error) {
 	for rows.Next() {
 		var t objects.Task
 		err := rows.Scan(
-			&t.ID, &t.Title, &t.Description, &t.Status,
+			&t.ID, &t.Title, &t.Description, &t.Status, &t.Plan,
 			&t.ClaimedBy, &t.ClaimedAt, &t.CreatedAt,
 			&t.FinishedAt, &t.Output, &t.Error,
 		)

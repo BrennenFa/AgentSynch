@@ -5,6 +5,7 @@ type Task struct {
 	Title       string
 	Description string
 	Status      string
+	Plan        *string
 	ClaimedBy   *string
 	ClaimedAt   *string
 	CreatedAt   string

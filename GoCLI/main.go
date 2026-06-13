@@ -16,6 +16,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  list   list all tasks")
 		fmt.Fprintln(os.Stderr, "  claim  claim the next available task")
 		fmt.Fprintln(os.Stderr, "  finish mark a claimed task as finished or error")
+		fmt.Fprintln(os.Stderr, "  plan   write a plan for a claimed task")
 		os.Exit(1)
 	}
 
@@ -28,6 +29,8 @@ func main() {
 		commands.Claim()
 	case "finish":
 		commands.Finish()
+	case "plan":
+		commands.Plan()
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		os.Exit(1)
