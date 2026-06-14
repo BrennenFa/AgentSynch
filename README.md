@@ -36,6 +36,19 @@ You own all the infrastructure:
 
   go run main.go add "my first task" "description of what to do"
 
+## Commands
+
+Run all commands from the `GoCLI/` directory using `./agentsynch <command>` (or `go run ./cmd/... <command>`).
+
+| Command | What it does |
+|---------|-------------|
+| `list` | Show all tasks |
+| `claim` | Claim the next available task |
+| `add --title "..." --description "..."` | Add a new task |
+| `plan --id <id> --plan "..."` | Write a plan for a claimed task |
+| `finish --id <id>` | Mark a task as finished |
+| `finish --id <id> --error "..."` | Mark a task as failed |
+
 
 
 Interesting elements

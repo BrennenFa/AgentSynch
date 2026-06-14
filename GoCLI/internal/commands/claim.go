@@ -39,6 +39,8 @@ func Claim() {
 	// spawn a detached background heartbeat loop so the task is not reaped as a zombie;
 	// uses the same binary that is currently running so no extra setup is needed
 	binary := os.Args[0]
+
+	// run a subprocess that heartbeats at a predefined interval
 	script := fmt.Sprintf("while true; do sleep 600; %s heartbeat --id %d; done", binary, task.ID)
 	hb := exec.Command("sh", "-c", script)
 	hb.Start() // detach — we never call Wait(); the shell loop outlives this process

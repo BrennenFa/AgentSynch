@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"agentsynch/internal/store"
 )
@@ -23,6 +24,11 @@ func List() {
 		os.Exit(1)
 	}
 
+	// clean output with tabwriter and truncate long descriptions
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tDESCRIPTION")
+	fmt.Fprintln(w, "--\t-----\t------\t-----------")
+
 	for _, task := range tasks {
 		status := task.Status
 
@@ -35,6 +41,14 @@ func List() {
 			// add which ids the task is waiting on
 			status += " (waiting on: " + strings.Join(ids, ", ") + ")"
 		}
-		fmt.Printf("ID: %d, Title: %s, Description: %s, Status: %s\n", task.ID, task.Title, task.Description, status)
+
+		// truncate long descriptions for cleaner output
+		desc := task.Description
+		if len(desc) > 60 {
+			desc = desc[:57] + "..."
+		}
+
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", task.ID, task.Title, status, desc)
 	}
+	w.Flush()
 }
