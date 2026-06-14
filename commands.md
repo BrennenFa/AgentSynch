@@ -2,7 +2,7 @@
 
 All commands run from the `GoCLI/` directory:
 ```
-cd GoCLI && go run . <command>
+cd GoCLI && go run ./cmd/... <command>
 ```
 
 ---
@@ -11,7 +11,7 @@ cd GoCLI && go run . <command>
 Atomically claim the next available task. Run this first.
 
 ```
-go run . claim
+go run ./cmd/... claim
 ```
 
 Finds the first `available` task, marks it `claimed`, and prints the task ID, title, and your agent ID. If no tasks are available, prints `no available tasks`.
@@ -22,7 +22,7 @@ Finds the first `available` task, marks it `claimed`, and prints the task ID, ti
 Write a plan for a claimed task. Required before moving to `in_progress` if no plan exists.
 
 ```
-go run . plan --id <id> --plan "your approach"
+go run ./cmd/... plan --id <id> --plan "your approach"
 ```
 
 ---
@@ -31,9 +31,9 @@ go run . plan --id <id> --plan "your approach"
 Mark a claimed task as finished or error.
 
 ```
-go run . finish --id <id>
-go run . finish --id <id> --output "optional summary"
-go run . finish --id <id> --error "what went wrong"
+go run ./cmd/... finish --id <id>
+go run ./cmd/... finish --id <id> --output "optional summary"
+go run ./cmd/... finish --id <id> --error "what went wrong"
 ```
 
 ---
@@ -42,8 +42,8 @@ go run . finish --id <id> --error "what went wrong"
 Add a new task. `--plan` is optional — if provided the agent will skip planning and execute directly.
 
 ```
-go run . add --title "short name" --description "what needs to be done"
-go run . add --title "short name" --description "what needs to be done" --plan "approach"
+go run ./cmd/... add --title "short name" --description "what needs to be done"
+go run ./cmd/... add --title "short name" --description "what needs to be done" --plan "approach"
 ```
 
 ---
@@ -52,7 +52,7 @@ go run . add --title "short name" --description "what needs to be done" --plan "
 List all tasks and their current status.
 
 ```
-go run . list
+go run ./cmd/... list
 ```
 
 ---

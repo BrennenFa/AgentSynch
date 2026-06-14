@@ -37,6 +37,8 @@ func main() {
 		commands.Plan()
 	case "server":
 		server.Server()
+	case "heartbeat":
+		server.Heartbeat() // internal — called by background loop spawned in claim.go
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		os.Exit(1)

@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     attempts     INTEGER NOT NULL DEFAULT 0
 );
 
-// DAG task dependency table
+-- DAG task dependency table
 CREATE TABLE IF NOT EXISTS task_dependencies (
     task_id       INTEGER NOT NULL REFERENCES tasks(id),
     depends_on_id INTEGER NOT NULL REFERENCES tasks(id),
@@ -74,10 +74,6 @@ func Open() (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("could not initialize schema: %w", err)
 	}
-
-	// migrate pre-existing DBs; SQLite returns "duplicate column name" for already-added columns
-	db.Exec(`ALTER TABLE tasks ADD COLUMN heartbeat_at TEXT`)
-	db.Exec(`ALTER TABLE tasks ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0`)
 
 	return db, nil
 }
@@ -339,6 +335,7 @@ func GetTask(db *sql.DB, id int64) (*objects.Task, error) {
 
 func ListTasks(db *sql.DB) ([]objects.Task, error) {
 	// query the rows needed
+	// TODO --- make more usable for agents
 	rows, err := db.Query(`SELECT id, title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error FROM tasks ORDER BY id`)
 	if err != nil {
 		return nil, err
