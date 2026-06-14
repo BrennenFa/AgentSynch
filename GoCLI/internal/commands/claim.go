@@ -3,8 +3,9 @@ package commands
 import (
 	"fmt"
 	"os"
+	"os/exec"
 
-	"agentsynch/store"
+	"agentsynch/internal/store"
 )
 
 func Claim() {
@@ -34,4 +35,11 @@ func Claim() {
 	}
 
 	fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
+
+	// spawn a detached background heartbeat loop so the task is not reaped as a zombie;
+	// uses the same binary that is currently running so no extra setup is needed
+	binary := os.Args[0]
+	script := fmt.Sprintf("while true; do sleep 600; %s heartbeat --id %d; done", binary, task.ID)
+	hb := exec.Command("sh", "-c", script)
+	hb.Start() // detach — we never call Wait(); the shell loop outlives this process
 }

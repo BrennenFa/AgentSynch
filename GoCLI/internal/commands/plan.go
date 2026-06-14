@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"agentsynch/store"
+	"agentsynch/internal/store"
 )
 
 func Plan() {

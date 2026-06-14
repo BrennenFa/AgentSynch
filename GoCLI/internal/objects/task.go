@@ -1,5 +1,10 @@
 package objects
 
+type TaskDependency struct {
+	TaskID      int64
+	DependsOnID int64
+}
+
 type Task struct {
 	ID          int64
 	Title       string
@@ -12,4 +17,7 @@ type Task struct {
 	FinishedAt  *string
 	Output      *string
 	Error       *string
+	Dependencies []int64
+	HeartbeatAt  *string
+	Attempts     int
 }

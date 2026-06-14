@@ -1,11 +1,13 @@
 # AgentSynch Agent Instructions
-
+DO NOT REMOVE ANY OF MY COMMENTS UNLESS THEY ARE NOW FALSE... IN WHCIH CASE UPDATE THEM INSTEAD
 You are a task-execution agent in the AgentSynch system.
+
+For all CLI commands, see [`commands.md`](./commands.md).
 
 ## Your job
 
-1. Read `tasks.yaml` and find a task with `status: available`
-2. Claim it by setting `status: claimed` and `claimed_by` to a unique agent ID (use format `agent-<timestamp>`, e.g. `agent-1749520620`)
+1. Claim the next available task
+2. Check if a plan exists — if not, write one
 3. Do the work described in the task
 4. Mark the task `finished` (or `error` if it fails)
 5. If no tasks are available, say so and stop
@@ -16,58 +18,64 @@ You are a task-execution agent in the AgentSynch system.
 |-------------|----------------------------------------------|
 | `available` | Ready to be claimed                          |
 | `claimed`   | An agent is actively working on it           |
-| `finished`  | Work is done, output recorded                |
-| `error`     | Task failed, error message recorded          |
+| `finished`  | Work is done                                 |
+| `error`     | Task failed                                  |
 
 ## Step-by-step
 
-### 1. Find an available task
+### 1. Claim a task
 
-Read `tasks.yaml`. Look for the first task where `status: available`.
-
-If none exist, output: "No available tasks. Exiting." and stop.
-
-### 2. Claim the task
-
-Edit `tasks.yaml` to update that task:
-```yaml
-status: claimed
-claimed_by: agent-<unix_timestamp>   # e.g. agent-1749520620
-claimed_at: "<ISO timestamp>"
+```bash
+cd GoCLI && go run . claim
 ```
 
-Use the current Unix timestamp as your agent ID so it is unique across concurrent agents.
+Atomically claims the first `available` task. Note the task ID printed.
+
+If the output is `no available tasks`, stop.
+
+### 2. Check for a plan
+
+If the task has a `plan`, read it and use it to guide your work.
+
+If there is no plan, write one before executing:
+
+```bash
+cd GoCLI && go run . plan --id <id> --plan "your approach"
+```
+
+Keep the plan concise — what you intend to do and why.
 
 ### 3. Do the work
 
-Read the task's `title` and `description`. Execute whatever is asked.
-- Write files, run bash commands, produce output — whatever the task requires.
-- Record a summary of what you did in the task's `output` field.
+Execute whatever the task's `title` and `description` ask for.
 
 ### 4. Mark the task complete
 
-On success, update the task in `tasks.yaml`:
-```yaml
-status: finished
-finished_at: "<ISO timestamp>"
-output: "<brief summary of what was done>"
+On success:
+```bash
+cd GoCLI && go run . finish --id <id>
+cd GoCLI && go run . finish --id <id> --output "optional summary"
 ```
 
-On failure, update:
-```yaml
-status: error
-finished_at: "<ISO timestamp>"
-error: "<description of what went wrong>"
+On failure:
+```bash
+cd GoCLI && go run . finish --id <id> --error "what went wrong"
+```
+
+## Adding new tasks
+
+```bash
+cd GoCLI && go run . add --title "short task name" --description "what needs to be done"
+```
+
+Include a plan if the approach is already clear:
+```bash
+cd GoCLI && go run . add --title "..." --description "..." --plan "approach"
 ```
 
 ## Important rules
 
 - Only claim **one task per session**. Claim it, finish it, then stop.
 - Do not modify tasks claimed by other agents.
-- Write your output directly into the `output` field in `tasks.yaml` — keep it short (1–3 sentences).
 - If a task asks you to create files, create them in the project root unless the task specifies otherwise.
 - If you are unsure what a task wants, make a reasonable interpretation and note it in `output`.
-
-## Quick reference: editing tasks.yaml
-
-Use the Edit tool to update the specific fields of the task you claimed. Do not rewrite the whole file.

@@ -1,0 +1,11 @@
+yes i understand the irony
+1. cross agent synch (codex, cursor) -> mcp
+4. hallucination control
+8. readability + logs + auditability / dashboard --> token counts
+9. brew package
+11. task failure
+12. wait for tasks
+13. exponential backoff
+14. task types?
+15. prioerity queue
+16. githib issues

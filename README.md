@@ -35,3 +35,11 @@ You own all the infrastructure:
 
 
   go run main.go add "my first task" "description of what to do"
+
+
+
+Interesting elements
+1. concurrency
+2. DAGs
+3. Server + heartbeat
+4. mutliagent (todo)
