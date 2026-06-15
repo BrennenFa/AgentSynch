@@ -38,8 +38,10 @@ func Claim() {
 
 	if validatorMode {
 		fmt.Printf("claimed task-%d for validation: %s (agent: %s)\n", task.ID, task.Title, agentID)
+		fmt.Printf("title: %s\n", task.Title)
 	} else {
 		fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
+		fmt.Printf("title: %s\n", task.Title)
 		// print branch hint so the agent knows what to do
 		if task.SameBranch {
 			fmt.Println("hint: same-branch task — work on current branch, no new branch needed")
