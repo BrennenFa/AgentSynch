@@ -33,6 +33,9 @@ func Server() {
 		}
 	}()
 
+	// run the GitHub automation worker: creates PRs for finished tasks and Issues for error tasks
+	go githubWorker(db)
+
 	// find ui.py relative to this binary
 	exe, err := os.Executable()
 	if err != nil {

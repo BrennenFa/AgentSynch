@@ -32,6 +32,7 @@ STATUS_COLORS = {
     "validating": "cyan",
     "error":      "red",
     "blocked":    "bright_black",
+    "archived":   "dim",
 }
 
 
@@ -81,6 +82,7 @@ def load_tasks(conn: sqlite3.Connection) -> list[dict]:
         SELECT id, title, status, claimed_by, claimed_at, created_at,
                finished_at, heartbeat_at, attempts
         FROM tasks
+        WHERE status != 'archived'
         ORDER BY id
     """)
     return [dict(row) for row in cur.fetchall()]

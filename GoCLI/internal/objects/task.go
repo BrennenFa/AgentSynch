@@ -18,6 +18,11 @@ type Task struct {
 	Output      *string
 	Error       *string
 	Dependencies []int64
-	HeartbeatAt  *string
-	Attempts     int
+	HeartbeatAt          *string
+	Attempts             int
+	ValidatorID          *string
+	ValidationClaimedAt  *string
+	SameBranch           bool
+	BranchName           *string
+	GhURL                *string
 }
