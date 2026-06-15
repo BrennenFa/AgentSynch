@@ -12,13 +12,15 @@ func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: agentsynch <command>")
 		fmt.Fprintln(os.Stderr, "commands:")
-		fmt.Fprintln(os.Stderr, "  add        add a new task")
-		fmt.Fprintln(os.Stderr, "  list       list all tasks")
-		fmt.Fprintln(os.Stderr, "  claim      claim the next available task")
-		fmt.Fprintln(os.Stderr, "  finish     mark a claimed task as finished or error")
-		fmt.Fprintln(os.Stderr, "  validate   approve or reject a validating task")
-		fmt.Fprintln(os.Stderr, "  plan       write a plan for a claimed task")
-		fmt.Fprintln(os.Stderr, "  server     start the reaper server")
+		fmt.Fprintln(os.Stderr, "  add          add a new task")
+		fmt.Fprintln(os.Stderr, "  list         list all tasks")
+		fmt.Fprintln(os.Stderr, "  claim        claim the next available task")
+		fmt.Fprintln(os.Stderr, "  finish       mark a claimed task as finished or error")
+		fmt.Fprintln(os.Stderr, "  validate     approve or reject a validating task")
+		fmt.Fprintln(os.Stderr, "  plan         write a plan for a claimed task")
+		fmt.Fprintln(os.Stderr, "  set-branch   record the branch created for a claimed task")
+		fmt.Fprintln(os.Stderr, "  archive      manually archive a finished or error task")
+		fmt.Fprintln(os.Stderr, "  server       start the reaper server")
 		os.Exit(1)
 	}
 
@@ -35,6 +37,10 @@ func main() {
 		commands.Validate()
 	case "plan":
 		commands.Plan()
+	case "set-branch":
+		commands.SetBranch()
+	case "archive":
+		commands.Archive()
 	case "server":
 		server.Server()
 	case "heartbeat":

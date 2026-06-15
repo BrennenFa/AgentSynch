@@ -1,16 +1,27 @@
 package commands
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
-	"text/tabwriter"
 
 	"agentsynch/internal/store"
 )
 
+// List outputs task data as JSON for agent consumption.
+// Flags:
+//
+//	--id <n>       fetch a single task by ID
+//	--status <s>   filter by status (available, claimed, validating, finished, error, blocked, archived)
+//	--all          include archived tasks (ignored when --id or --status is set)
 func List() {
+	flags := flag.NewFlagSet("list", flag.ExitOnError)
+	idFlag := flags.Int64("id", 0, "fetch a single task by ID")
+	statusFlag := flags.String("status", "", "filter tasks by status")
+	allFlag := flags.Bool("all", false, "include archived tasks")
+	flags.Parse(os.Args[2:])
+
 	db, err := store.Open()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
@@ -18,37 +29,37 @@ func List() {
 	}
 	defer db.Close()
 
-	tasks, err := store.ListTasks(db)
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+
+	// single-task lookup
+	if *idFlag != 0 {
+		task, err := store.GetTask(db, *idFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error reading task: %v\n", err)
+			os.Exit(1)
+		}
+		if task == nil {
+			fmt.Fprintf(os.Stderr, "task-%d not found\n", *idFlag)
+			os.Exit(1)
+		}
+		enc.Encode(task)
+		return
+	}
+
+	// filtered or full list
+	var tasks interface{}
+	if *statusFlag != "" {
+		tasks, err = store.ListTasksByStatus(db, *statusFlag)
+	} else if *allFlag {
+		tasks, err = store.ListAllTasks(db)
+	} else {
+		tasks, err = store.ListTasks(db)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error reading tasks: %v\n", err)
 		os.Exit(1)
 	}
 
-	// clean output with tabwriter and truncate long descriptions
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tDESCRIPTION")
-	fmt.Fprintln(w, "--\t-----\t------\t-----------")
-
-	for _, task := range tasks {
-		status := task.Status
-
-		// print out string dependencies
-		if task.Status == "blocked" && len(task.Dependencies) > 0 {
-			ids := make([]string, len(task.Dependencies))
-			for i, id := range task.Dependencies {
-				ids[i] = strconv.FormatInt(id, 10)
-			}
-			// add which ids the task is waiting on
-			status += " (waiting on: " + strings.Join(ids, ", ") + ")"
-		}
-
-		// truncate long descriptions for cleaner output
-		desc := task.Description
-		if len(desc) > 60 {
-			desc = desc[:57] + "..."
-		}
-
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", task.ID, task.Title, status, desc)
-	}
-	w.Flush()
+	enc.Encode(tasks)
 }
