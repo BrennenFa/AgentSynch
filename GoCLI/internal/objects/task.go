@@ -6,7 +6,6 @@ type TaskDependency struct {
 }
 
 type Task struct {
-<<<<<<< HEAD
 	ID           int64    `json:"id"`
 	Title        string   `json:"title"`
 	Description  string   `json:"description"`
@@ -26,25 +25,4 @@ type Task struct {
 	SameBranch           bool    `json:"same_branch"`
 	BranchName           *string `json:"branch_name"`
 	GhURL                *string `json:"gh_url"`
-=======
-	ID          int64
-	Title       string
-	Description string
-	Status      string
-	Plan        *string
-	ClaimedBy   *string
-	ClaimedAt   *string
-	CreatedAt   string
-	FinishedAt  *string
-	Output      *string
-	Error       *string
-	Dependencies []int64
-	HeartbeatAt          *string
-	Attempts             int
-	ValidatorID          *string
-	ValidationClaimedAt  *string
-	SameBranch           bool
-	BranchName           *string
-	GhURL                *string
->>>>>>> validation_loop
 }
