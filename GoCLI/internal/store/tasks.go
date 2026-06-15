@@ -8,6 +8,27 @@ import (
 	"agentsynch/internal/objects"
 )
 
+// allColumns is the full column list used by every read query.
+const allColumns = `id, title, description, status, plan, claimed_by, claimed_at, created_at,
+	finished_at, output, error, heartbeat_at, attempts, validator_id, validation_claimed_at,
+	same_branch, branch_name, gh_url`
+
+func scanTask(row interface {
+	Scan(...any) error
+}) (objects.Task, error) {
+	var t objects.Task
+	var sameBranchInt int
+	err := row.Scan(
+		&t.ID, &t.Title, &t.Description, &t.Status, &t.Plan,
+		&t.ClaimedBy, &t.ClaimedAt, &t.CreatedAt,
+		&t.FinishedAt, &t.Output, &t.Error,
+		&t.HeartbeatAt, &t.Attempts, &t.ValidatorID, &t.ValidationClaimedAt,
+		&sameBranchInt, &t.BranchName, &t.GhURL,
+	)
+	t.SameBranch = sameBranchInt == 1
+	return t, err
+}
+
 func AddTask(db *sql.DB, task objects.Task, deps []int64) (int64, error) {
 	if len(deps) > 0 {
 		task.Status = "blocked"
@@ -57,31 +78,48 @@ func AddTask(db *sql.DB, task objects.Task, deps []int64) (int64, error) {
 }
 
 func GetTask(db *sql.DB, id int64) (*objects.Task, error) {
-	var t objects.Task
-	err := db.QueryRow(`SELECT id, title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error FROM tasks WHERE id = ?`, id).Scan(
-		&t.ID, &t.Title, &t.Description, &t.Status, &t.Plan,
-		&t.ClaimedBy, &t.ClaimedAt, &t.CreatedAt,
-		&t.FinishedAt, &t.Output, &t.Error,
-	)
+	row := db.QueryRow(`SELECT `+allColumns+` FROM tasks WHERE id = ?`, id)
+	t, err := scanTask(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
+
+	depRows, err := db.Query(`SELECT depends_on_id FROM task_dependencies WHERE task_id = ? ORDER BY depends_on_id`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer depRows.Close()
+	for depRows.Next() {
+		var depID int64
+		if err := depRows.Scan(&depID); err != nil {
+			return nil, err
+		}
+		t.Dependencies = append(t.Dependencies, depID)
+	}
+	if err := depRows.Err(); err != nil {
+		return nil, err
+	}
+
 	return &t, nil
 }
 
-func listTasksQuery(db *sql.DB, includeArchived bool) ([]objects.Task, error) {
-	// TODO --- make more usable for agents
-	query := `SELECT id, title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error FROM tasks`
-	if !includeArchived {
+func listTasksQuery(db *sql.DB, includeArchived bool, statusFilter string) ([]objects.Task, error) {
+	query := `SELECT ` + allColumns + ` FROM tasks`
+	var args []any
+
+	if statusFilter != "" {
+		query += ` WHERE status = ?`
+		args = append(args, statusFilter)
+	} else if !includeArchived {
 		// archived tasks are soft-deleted; hide them from normal views
 		query += ` WHERE status != 'archived'`
 	}
 	query += ` ORDER BY id`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,12 +130,7 @@ func listTasksQuery(db *sql.DB, includeArchived bool) ([]objects.Task, error) {
 
 	// package tasks into a struct
 	for rows.Next() {
-		var t objects.Task
-		err := rows.Scan(
-			&t.ID, &t.Title, &t.Description, &t.Status, &t.Plan,
-			&t.ClaimedBy, &t.ClaimedAt, &t.CreatedAt,
-			&t.FinishedAt, &t.Output, &t.Error,
-		)
+		t, err := scanTask(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -128,10 +161,15 @@ func listTasksQuery(db *sql.DB, includeArchived bool) ([]objects.Task, error) {
 
 // ListTasks returns all tasks except archived ones.
 func ListTasks(db *sql.DB) ([]objects.Task, error) {
-	return listTasksQuery(db, false)
+	return listTasksQuery(db, false, "")
 }
 
 // ListAllTasks returns all tasks including archived ones (full history).
 func ListAllTasks(db *sql.DB) ([]objects.Task, error) {
-	return listTasksQuery(db, true)
+	return listTasksQuery(db, true, "")
+}
+
+// ListTasksByStatus returns tasks matching the given status.
+func ListTasksByStatus(db *sql.DB, status string) ([]objects.Task, error) {
+	return listTasksQuery(db, true, status)
 }
