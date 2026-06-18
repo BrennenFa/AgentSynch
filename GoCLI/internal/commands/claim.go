@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"syscall"
 
 	"agentsynch/internal/store"
 )
@@ -50,14 +51,19 @@ func Claim() {
 		}
 	}
 
-	// spawn a detached background heartbeat loop so the task is not reaped as a zombie;
-	// uses the same binary that is currently running so no extra setup is needed
+	// spawn a detached background heartbeat process so the task is not reaped as a zombie.
+	// The `heartbeat` command loops internally (5-min intervals), so no shell wrapper is needed.
+	// Setsid puts the subprocess in its own session so parent signals don't reach it.
+	// Process.Release() frees Go's internal handle without killing the process; init will
+	// reap it when it eventually exits (once the task leaves claimed/validating status).
 	binary := os.Args[0]
-
-	// run a subprocess that heartbeats at a predefined interval
-	script := fmt.Sprintf("while true; do sleep 600; %s heartbeat --id %d; done", binary, task.ID)
-	hb := exec.Command("sh", "-c", script)
-	hb.Start() // detach — we never call Wait(); the shell loop outlives this process
+	hb := exec.Command(binary, "heartbeat", "--id", fmt.Sprintf("%d", task.ID))
+	hb.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := hb.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not start heartbeat: %v\n", err)
+	} else {
+		hb.Process.Release()
+	}
 }
 
 var nonAlphanumDash = regexp.MustCompile(`[^a-z0-9-]+`)
