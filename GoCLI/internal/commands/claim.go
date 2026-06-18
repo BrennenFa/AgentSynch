@@ -49,6 +49,8 @@ func Claim() {
 			fmt.Printf("hint: create branch %s and record with set-branch --id %d --name %s\n", branchName, task.ID, branchName)
 		}
 	}
+	// print title as its own output field so it is unambiguous regardless of claim format
+	fmt.Printf("title: %s\n", task.Title)
 
 	// spawn a detached background heartbeat loop so the task is not reaped as a zombie;
 	// uses the same binary that is currently running so no extra setup is needed
