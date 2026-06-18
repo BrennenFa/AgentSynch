@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
-	"strings"
 
 	"agentsynch/internal/store"
 )
@@ -35,20 +33,37 @@ func Claim() {
 		fmt.Println("no available tasks")
 		return
 	}
-
+	
+	// looking at a validation task
 	if validatorMode {
 		fmt.Printf("claimed task-%d for validation: %s (agent: %s)\n", task.ID, task.Title, agentID)
+		
+	// looking at engineering task
 	} else {
 		fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
+
 		// print branch hint so the agent knows what to do
+		// comes from --same-branch flag
 		if task.SameBranch {
 			fmt.Println("hint: same-branch task — work on current branch, no new branch needed")
 		} else {
 			slug := titleSlug(task.Title)
 			branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
-			fmt.Printf("hint: create branch %s and record with set-branch --id %d --name %s\n", branchName, task.ID, branchName)
+
+
+			if err := checkoutNewBranch(branchName); err != nil {
+				fmt.Printf("warning: could not create branch %s: %v\n", branchName, err)
+				fmt.Printf("hint: create branch %s and record with set-branch --id %d --name %s\n", branchName, task.ID, branchName)
+			} else {
+				if err := store.SetBranchName(db, task.ID, branchName); err != nil {
+					fmt.Printf("warning: could not record branch name: %v\n", err)
+				}
+				fmt.Printf("hint: created branch %s\n", branchName)
+			}
 		}
 	}
+	// print title as its own output field so it is unambiguous regardless of claim format
+	fmt.Printf("title: %s\n", task.Title)
 
 	// spawn a detached background heartbeat loop so the task is not reaped as a zombie;
 	// uses the same binary that is currently running so no extra setup is needed
@@ -60,17 +75,3 @@ func Claim() {
 	hb.Start() // detach — we never call Wait(); the shell loop outlives this process
 }
 
-var nonAlphanumDash = regexp.MustCompile(`[^a-z0-9-]+`)
-
-// titleSlug converts a task title to a lowercase hyphenated slug for branch names.
-func titleSlug(title string) string {
-	s := strings.ToLower(title)
-	s = strings.ReplaceAll(s, " ", "-")
-	s = nonAlphanumDash.ReplaceAllString(s, "")
-	// collapse consecutive hyphens
-	for strings.Contains(s, "--") {
-		s = strings.ReplaceAll(s, "--", "-")
-	}
-	s = strings.Trim(s, "-")
-	return s
-}

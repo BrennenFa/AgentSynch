@@ -28,6 +28,21 @@ func Finish() {
 	}
 	defer db.Close()
 
+	// Auto-push branch if one was recorded for this task
+	// TODO --- what does recorderd for this task mean??? is it useful?
+	task, err := store.GetTask(db, *idFlag)
+	
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not fetch task for branch push: %v\n", err)
+	} else if task != nil && task.BranchName != nil && *task.BranchName != "" {
+		// task is available and has a branch name recorded. --> try to push it
+		if err := pushBranch(*task.BranchName); err != nil {
+			fmt.Printf("warning: could not push branch %s: %v\n", *task.BranchName, err)
+		} else {
+			fmt.Printf("pushed branch %s to origin\n", *task.BranchName)
+		}
+	}
+
 	// Case 1: an error exists
 	if *errorFlag != "" {
 		if err := store.ErrorTask(db, *idFlag, *errorFlag); err != nil {
