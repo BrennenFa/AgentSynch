@@ -11,21 +11,19 @@ import (
 // allColumns is the full column list used by every read query.
 const allColumns = `id, title, description, status, plan, claimed_by, claimed_at, created_at,
 	finished_at, output, error, heartbeat_at, attempts, validator_id, validation_claimed_at,
-	same_branch, branch_name, gh_url`
+	branch_name, gh_url`
 
 func scanTask(row interface {
 	Scan(...any) error
 }) (objects.Task, error) {
 	var t objects.Task
-	var sameBranchInt int
 	err := row.Scan(
 		&t.ID, &t.Title, &t.Description, &t.Status, &t.Plan,
 		&t.ClaimedBy, &t.ClaimedAt, &t.CreatedAt,
 		&t.FinishedAt, &t.Output, &t.Error,
 		&t.HeartbeatAt, &t.Attempts, &t.ValidatorID, &t.ValidationClaimedAt,
-		&sameBranchInt, &t.BranchName, &t.GhURL,
+		&t.BranchName, &t.GhURL,
 	)
-	t.SameBranch = sameBranchInt == 1
 	return t, err
 }
 
@@ -41,16 +39,12 @@ func AddTask(db *sql.DB, task objects.Task, deps []int64) (int64, error) {
 	defer tx.Rollback()
 
 	// insert tasks based on the given items
-	sameBranchInt := 0
-	if task.SameBranch {
-		sameBranchInt = 1
-	}
 	result, err := tx.Exec(
-		`INSERT INTO tasks (title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error, same_branch)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO tasks (title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		task.Title, task.Description, task.Status, task.Plan,
 		task.ClaimedBy, task.ClaimedAt, task.CreatedAt,
-		task.FinishedAt, task.Output, task.Error, sameBranchInt,
+		task.FinishedAt, task.Output, task.Error,
 	)
 	if err != nil {
 		return 0, err

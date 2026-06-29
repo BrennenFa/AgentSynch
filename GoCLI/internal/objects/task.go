@@ -22,7 +22,6 @@ type Task struct {
 	Attempts             int     `json:"attempts"`
 	ValidatorID          *string `json:"validator_id"`
 	ValidationClaimedAt  *string `json:"validation_claimed_at"`
-	SameBranch           bool    `json:"same_branch"`
 	BranchName           *string `json:"branch_name"`
 	GhURL                *string `json:"gh_url"`
 }

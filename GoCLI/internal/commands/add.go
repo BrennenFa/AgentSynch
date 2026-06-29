@@ -20,7 +20,6 @@ func Add() {
 	descFlag := flags.String("description", "", "task description")
 	planFlag := flags.String("plan", "", "optional plan for the task")
 	dependsOnFlag := flags.String("depends-on", "", "comma-separated task IDs this task depends on (e.g. 1,3)")
-	sameBranchFlag := flags.Bool("same-branch", false, "work on current branch; no new branch needed")
 	flags.Parse(os.Args[2:])
 
 	var title, description, planInput string
@@ -83,7 +82,6 @@ func Add() {
 		Status:      "available",
 		Plan:        plan,
 		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-		SameBranch:  *sameBranchFlag,
 	}
 
 	id, err := store.AddTask(db, task, dependencies)

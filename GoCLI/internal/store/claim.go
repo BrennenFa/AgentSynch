@@ -21,10 +21,9 @@ func Claim(db *sql.DB, agentID string) (*objects.Task, bool, error) {
 
 	// 1. Look for the oldest available (worker) task
 	var workerTask objects.Task
-	var sameBranchInt int
 	workerErr := tx.QueryRow(
-		`SELECT id, title, description, status, created_at, same_branch FROM tasks WHERE status = 'available' ORDER BY id LIMIT 1`,
-	).Scan(&workerTask.ID, &workerTask.Title, &workerTask.Description, &workerTask.Status, &workerTask.CreatedAt, &sameBranchInt)
+		`SELECT id, title, description, status, created_at FROM tasks WHERE status = 'available' ORDER BY id LIMIT 1`,
+	).Scan(&workerTask.ID, &workerTask.Title, &workerTask.Description, &workerTask.Status, &workerTask.CreatedAt)
 
 	if workerErr != nil && workerErr != sql.ErrNoRows {
 		return nil, false, workerErr
@@ -32,7 +31,6 @@ func Claim(db *sql.DB, agentID string) (*objects.Task, bool, error) {
 
 	if workerErr == nil {
 		// Found an available task — claim it as worker
-		workerTask.SameBranch = sameBranchInt == 1
 		claimedAt := time.Now().UTC().Format(time.RFC3339)
 		_, err = tx.Exec(
 			`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1 WHERE id = ?`,
