@@ -40,13 +40,15 @@ func Claim() {
 		fmt.Printf("claimed task-%d for validation: %s (agent: %s)\n", task.ID, task.Title, agentID)
 	} else {
 		fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
-		// print branch hint so the agent knows what to do
-		if task.SameBranch {
-			fmt.Println("hint: same-branch task — work on current branch, no new branch needed")
+
+		slug := titleSlug(task.Title)
+		branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
+		fmt.Printf("hint: create branch %s and record with set-branch --id %d --name %s\n", branchName, task.ID, branchName)
+
+		if task.Plan != nil && *task.Plan != "" {
+			fmt.Printf("plan: %s\n", *task.Plan)
 		} else {
-			slug := titleSlug(task.Title)
-			branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
-			fmt.Printf("hint: create branch %s and record with set-branch --id %d --name %s\n", branchName, task.ID, branchName)
+			fmt.Printf("warning: no plan — write one before starting:\n  agentsynch plan --id %d --plan \"your approach\"\n", task.ID)
 		}
 	}
 

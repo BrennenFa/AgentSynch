@@ -76,9 +76,7 @@ func Open() (*sql.DB, error) {
 	migrations := []string{
 		`ALTER TABLE tasks ADD COLUMN validator_id TEXT`,
 		`ALTER TABLE tasks ADD COLUMN validation_claimed_at TEXT`,
-		// branch tracking: same_branch=1 means work on current branch; 0 (default) means create a new branch
-		`ALTER TABLE tasks ADD COLUMN same_branch INTEGER NOT NULL DEFAULT 0`,
-		// branch_name: the branch the agent created and worked on (NULL if same-branch or not yet set)
+		// branch_name: the branch the agent created and worked on (NULL if not yet set)
 		`ALTER TABLE tasks ADD COLUMN branch_name TEXT`,
 		// gh_url: URL of the GitHub PR or issue created by the server; guards against duplicate GH actions
 		`ALTER TABLE tasks ADD COLUMN gh_url TEXT`,

@@ -1,0 +1,332 @@
+[
+  {
+    "timestamp": "2026-06-15T03:11:22Z",
+    "results": [
+      {
+        "agent_count": 1,
+        "total_tasks": 550,
+        "tasks_completed": 1050,
+        "duration_ms": 1545,
+        "throughput_per_sec": 679.6116504854369,
+        "sim_tokens_per_sec": 339805.82524271845,
+        "contention_errors": 0,
+        "validations_claimed": 550
+      },
+      {
+        "agent_count": 2,
+        "total_tasks": 550,
+        "tasks_completed": 1050,
+        "duration_ms": 2514,
+        "throughput_per_sec": 417.66109785202866,
+        "sim_tokens_per_sec": 208830.54892601434,
+        "contention_errors": 7212,
+        "validations_claimed": 550
+      },
+      {
+        "agent_count": 4,
+        "total_tasks": 550,
+        "tasks_completed": 1050,
+        "duration_ms": 1468,
+        "throughput_per_sec": 715.258855585831,
+        "sim_tokens_per_sec": 357629.42779291555,
+        "contention_errors": 2777,
+        "validations_claimed": 550
+      },
+      {
+        "agent_count": 8,
+        "total_tasks": 550,
+        "tasks_completed": 1050,
+        "duration_ms": 7374,
+        "throughput_per_sec": 142.39218877135883,
+        "sim_tokens_per_sec": 71196.09438567942,
+        "contention_errors": 13879,
+        "validations_claimed": 550
+      },
+      {
+        "agent_count": 16,
+        "total_tasks": 550,
+        "tasks_completed": 1050,
+        "duration_ms": 39021,
+        "throughput_per_sec": 26.90858768355501,
+        "sim_tokens_per_sec": 13454.293841777504,
+        "contention_errors": 58800,
+        "validations_claimed": 550
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-06-15T03:15:56Z",
+    "results": [
+      {
+        "agent_count": 1,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 2483,
+        "throughput_per_sec": 88.60249697946033,
+        "sim_tokens_per_sec": 44301.24848973016,
+        "contention_errors": 0,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 2,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 1424,
+        "throughput_per_sec": 154.4943820224719,
+        "sim_tokens_per_sec": 77247.19101123596,
+        "contention_errors": 858,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 4,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 675,
+        "throughput_per_sec": 325.9259259259259,
+        "sim_tokens_per_sec": 162962.96296296295,
+        "contention_errors": 607,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 8,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 409,
+        "throughput_per_sec": 537.8973105134475,
+        "sim_tokens_per_sec": 268948.65525672375,
+        "contention_errors": 1071,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 16,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 2282,
+        "throughput_per_sec": 96.40666082383873,
+        "sim_tokens_per_sec": 48203.33041191937,
+        "contention_errors": 12259,
+        "validations_claimed": 120
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-06-15T23:49:26Z",
+    "results": [
+      {
+        "agent_count": 1,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 3024,
+        "throughput_per_sec": 72.75132275132275,
+        "sim_tokens_per_sec": 36375.66137566137,
+        "contention_errors": 0,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 2,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 2223,
+        "throughput_per_sec": 98.96536212325687,
+        "sim_tokens_per_sec": 49482.681061628435,
+        "contention_errors": 116,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 4,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 3303,
+        "throughput_per_sec": 66.60611565243718,
+        "sim_tokens_per_sec": 33303.05782621859,
+        "contention_errors": 453,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 8,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 17871,
+        "throughput_per_sec": 12.310447093055789,
+        "sim_tokens_per_sec": 6155.2235465278945,
+        "contention_errors": 2996,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 16,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 181409,
+        "throughput_per_sec": 1.2127292471707578,
+        "sim_tokens_per_sec": 606.3646235853789,
+        "contention_errors": 25674,
+        "validations_claimed": 120
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-06-16T00:10:09Z",
+    "results": [
+      {
+        "agent_count": 1,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 3328,
+        "throughput_per_sec": 66.10576923076924,
+        "sim_tokens_per_sec": 33052.88461538462,
+        "contention_errors": 0,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 2,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 2148,
+        "throughput_per_sec": 102.42085661080074,
+        "sim_tokens_per_sec": 51210.42830540037,
+        "contention_errors": 81,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 4,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 3057,
+        "throughput_per_sec": 71.96597971867844,
+        "sim_tokens_per_sec": 35982.98985933922,
+        "contention_errors": 443,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 8,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 15291,
+        "throughput_per_sec": 14.387548230985546,
+        "sim_tokens_per_sec": 7193.7741154927735,
+        "contention_errors": 2624,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 16,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 182748,
+        "throughput_per_sec": 1.2038435441153938,
+        "sim_tokens_per_sec": 601.921772057697,
+        "contention_errors": 25768,
+        "validations_claimed": 120
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-06-29T02:55:54Z",
+    "results": [
+      {
+        "agent_count": 1,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 2464,
+        "throughput_per_sec": 89.28571428571429,
+        "sim_tokens_per_sec": 44642.857142857145,
+        "contention_errors": 0,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 2,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 1363,
+        "throughput_per_sec": 161.40865737344095,
+        "sim_tokens_per_sec": 80704.32868672047,
+        "contention_errors": 1131,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 4,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 697,
+        "throughput_per_sec": 315.6384505021521,
+        "sim_tokens_per_sec": 157819.22525107604,
+        "contention_errors": 503,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 8,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 372,
+        "throughput_per_sec": 591.3978494623656,
+        "sim_tokens_per_sec": 295698.9247311828,
+        "contention_errors": 772,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 16,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 657,
+        "throughput_per_sec": 334.85540334855403,
+        "sim_tokens_per_sec": 167427.70167427702,
+        "contention_errors": 2367,
+        "validations_claimed": 120
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-06-29T03:04:50Z",
+    "results": [
+      {
+        "agent_count": 1,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 2464,
+        "throughput_per_sec": 89.28571428571429,
+        "sim_tokens_per_sec": 44642.857142857145,
+        "contention_errors": 0,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 2,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 1357,
+        "throughput_per_sec": 162.12232866617538,
+        "sim_tokens_per_sec": 81061.1643330877,
+        "contention_errors": 1568,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 4,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 636,
+        "throughput_per_sec": 345.9119496855346,
+        "sim_tokens_per_sec": 172955.9748427673,
+        "contention_errors": 457,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 8,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 341,
+        "throughput_per_sec": 645.1612903225806,
+        "sim_tokens_per_sec": 322580.6451612903,
+        "contention_errors": 378,
+        "validations_claimed": 120
+      },
+      {
+        "agent_count": 16,
+        "total_tasks": 120,
+        "tasks_completed": 220,
+        "duration_ms": 1038,
+        "throughput_per_sec": 211.9460500963391,
+        "sim_tokens_per_sec": 105973.02504816955,
+        "contention_errors": 5441,
+        "validations_claimed": 120
+      }
+    ]
+  }
+]
