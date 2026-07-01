@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
 );`
 
 func Open() (*sql.DB, error) {
-
 	// issue if cannot find correct dir
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -61,7 +60,7 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("could not set WAL mode: %w", err)
 	}
 
-	// enforces foreign key dependency w dag
+	// enforce foreign key constraints for DAG dependency integrity
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("could not enable foreign keys: %w", err)
