@@ -19,8 +19,6 @@ const githubInterval = 10 * time.Second
 func githubWorker(db *sql.DB) {
 	runGithubPass(db)
 	ticker := time.NewTicker(githubInterval)
-
-	
 	defer ticker.Stop()
 
 	// run githubpass function
@@ -40,7 +38,7 @@ func runGithubPass(db *sql.DB) {
 	// iterate through finished tasks, create PR and archive each one
 	for _, task := range finished {
 		var url string
-		// ensure valid branch name
+		// only create a PR if the agent worked on a dedicated branch
 		if task.BranchName != nil && *task.BranchName != "" {
 			url, err = createPR(task)
 			if err != nil {
@@ -51,7 +49,6 @@ func runGithubPass(db *sql.DB) {
 			// if no branch, assume same branch pr
 			url = "same-branch"
 		}
-
 
 		// archive the task
 		if err := store.SetDbGit(db, task.ID, url); err != nil {
