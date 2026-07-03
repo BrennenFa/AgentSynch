@@ -58,7 +58,7 @@ func Claim() {
 				if attempt > 1 {
 					candidate = fmt.Sprintf("%s-%d", branchName, attempt)
 				}
-				if err := checkoutNewBranch(candidate); err == nil {
+				if err := createWorktree("../AgentSynch-"+candidate, candidate); err == nil {
 					created = candidate
 					break
 				}
@@ -70,7 +70,7 @@ func Claim() {
 				if err := store.SetBranchName(db, task.ID, created); err != nil {
 					fmt.Printf("warning: could not record branch name: %v\n", err)
 				}
-				fmt.Printf("hint: created branch %s\n", created)
+				fmt.Printf("hint: created branch %s in worktree ../AgentSynch-%s\n", created, created)
 			}
 		}
 	}
@@ -78,11 +78,11 @@ func Claim() {
 	fmt.Printf("title: %s\n", task.Title)
 
 	// spawn a detached background heartbeat loop so the task is not reaped as a zombie;
-	// re-invoke this same executable so no extra setup is needed
-	selfExe := os.Args[0] // path to the currently-running executable (e.g. ./agentsynch)
+	// uses the same binary that is currently running so no extra setup is needed
+	binary := os.Args[0]
 
 	// run a subprocess that heartbeats at a predefined interval
-	script := fmt.Sprintf("while true; do sleep 600; %s heartbeat --id %d; done", selfExe, task.ID)
+	script := fmt.Sprintf("while true; do sleep 600; %s heartbeat --id %d; done", binary, task.ID)
 	hb := exec.Command("sh", "-c", script)
 	hb.Start() // detach — we never call Wait(); the shell loop outlives this process
 }
