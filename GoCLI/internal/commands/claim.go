@@ -33,15 +33,14 @@ func Claim() {
 		fmt.Println("no available tasks")
 		return
 	}
-	
+
 	// looking at a validation task
 	if validatorMode {
 		fmt.Printf("claimed task-%d for validation: %s (agent: %s)\n", task.ID, task.Title, agentID)
-		
-	// looking at engineering task
+		fmt.Printf("title: %s\n", task.Title)
 	} else {
 		fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
-
+		fmt.Printf("title: %s\n", task.Title)
 		// print branch hint so the agent knows what to do
 		// comes from --same-branch flag
 		if task.SameBranch {
@@ -74,8 +73,6 @@ func Claim() {
 			}
 		}
 	}
-	// print title as its own output field so it is unambiguous regardless of claim format
-	fmt.Printf("title: %s\n", task.Title)
 
 	// spawn a detached background heartbeat loop so the task is not reaped as a zombie;
 	// uses the same binary that is currently running so no extra setup is needed
@@ -86,4 +83,3 @@ func Claim() {
 	hb := exec.Command("sh", "-c", script)
 	hb.Start() // detach — we never call Wait(); the shell loop outlives this process
 }
-
