@@ -79,6 +79,9 @@ func Open() (*sql.DB, error) {
 		`ALTER TABLE tasks ADD COLUMN branch_name TEXT`,
 		// gh_url: URL of the GitHub PR or issue created by the server; guards against duplicate GH actions
 		`ALTER TABLE tasks ADD COLUMN gh_url TEXT`,
+		// agent_hostname and agent_pid allow the reaper to kill the actual process, not just reset the DB
+		`ALTER TABLE tasks ADD COLUMN agent_hostname TEXT`,
+		`ALTER TABLE tasks ADD COLUMN agent_pid INTEGER`,
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {

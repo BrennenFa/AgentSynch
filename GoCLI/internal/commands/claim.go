@@ -25,6 +25,7 @@ func Claim() {
 	}
 	defer db.Close()
 
+
 	// claim next available task atomically
 	task, err := store.Claim(db, agentID)
 	if err != nil {

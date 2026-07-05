@@ -8,9 +8,10 @@ import (
 	"agentsynch/internal/objects"
 )
 
-// Claim atomically claims the next available task in a serializable transaction.
-// Returns (task, error). Returns (nil, nil) if nothing to claim.
-func Claim(db *sql.DB, agentID string) (*objects.Task, error) {
+// Claim atomically claims the next task in a single serializable transaction.
+// It prefers available over validating tasks
+// Returns (task, validatorMode, error). Returns (nil, false, nil) if nothing to claim.
+func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task, bool, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, err
@@ -28,6 +29,24 @@ func Claim(db *sql.DB, agentID string) (*objects.Task, error) {
 		return nil, workerErr
 	}
 
+	if workerErr == nil {
+		// Found an available task — claim it as worker
+		workerTask.SameBranch = sameBranchInt == 1
+		claimedAt := time.Now().UTC().Format(time.RFC3339)
+		_, err = tx.Exec(
+			`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1, agent_hostname = ?, agent_pid = ? WHERE id = ?`,
+			agentID, claimedAt, hostname, pid, workerTask.ID,
+		)
+		if err != nil {
+			return nil, false, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, false, err
+		}
+		workerTask.Status = "claimed"
+		workerTask.ClaimedBy = &agentID
+		workerTask.ClaimedAt = &claimedAt
+		return &workerTask, false, nil
 	if workerErr == sql.ErrNoRows {
 		return nil, nil
 	}
