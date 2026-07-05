@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
-	"strings"
 	"syscall"
 
 	"agentsynch/internal/store"
@@ -16,6 +14,8 @@ func Claim() {
 	if err != nil {
 		hostname = "unknown"
 	}
+
+	// unique agent id based on hostname and process id
 	agentID := fmt.Sprintf("agent-%s-%d", hostname, os.Getpid())
 
 	db, err := store.Open()
@@ -25,8 +25,8 @@ func Claim() {
 	}
 	defer db.Close()
 
-	// claim next task atomically — worker mode if available, validator mode otherwise
-	task, validatorMode, err := store.Claim(db, agentID)
+	// claim next available task atomically
+	task, err := store.Claim(db, agentID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error claiming task: %v\n", err)
 		os.Exit(1)
@@ -37,46 +37,49 @@ func Claim() {
 		return
 	}
 
-	if validatorMode {
-		fmt.Printf("claimed task-%d for validation: %s (agent: %s)\n", task.ID, task.Title, agentID)
+	fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
+	fmt.Printf("title: %s\n", task.Title)
+	// print branch hint so the agent knows what to do
+	// comes from --same-branch flag
+	if task.SameBranch {
+		fmt.Println("hint: same-branch task — work on current branch, no new branch needed")
 	} else {
-		fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
-		// print branch hint so the agent knows what to do
-		if task.SameBranch {
-			fmt.Println("hint: same-branch task — work on current branch, no new branch needed")
+		slug := titleSlug(task.Title)
+		branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
+
+		// retry with numeric suffix if branch already exists
+		created := ""
+		for attempt := 1; attempt <= 10; attempt++ {
+			candidate := branchName
+			if attempt > 1 {
+				candidate = fmt.Sprintf("%s-%d", branchName, attempt)
+			}
+			if err := createWorktree("../AgentSynch-"+candidate, candidate); err == nil {
+				created = candidate
+				break
+			}
+		}
+		if created == "" {
+			fmt.Printf("warning: could not create branch %s (tried up to -10 suffix)\n", branchName)
 		} else {
-			slug := titleSlug(task.Title)
-			branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
-			fmt.Printf("hint: create branch %s and record with set-branch --id %d --name %s\n", branchName, task.ID, branchName)
+			if err := store.SetBranchName(db, task.ID, created); err != nil {
+				fmt.Printf("warning: could not record branch name: %v\n", err)
+			}
+			fmt.Printf("hint: created branch %s in worktree ../AgentSynch-%s\n", created, created)
 		}
 	}
 
-	// spawn a detached background heartbeat process so the task is not reaped as a zombie.
-	// The `heartbeat` command loops internally (5-min intervals), so no shell wrapper is needed.
-	// Setsid puts the subprocess in its own session so parent signals don't reach it.
-	// Process.Release() frees Go's internal handle without killing the process; init will
-	// reap it when it eventually exits (once the task leaves claimed/validating status).
-	binary := os.Args[0]
-	hb := exec.Command(binary, "heartbeat", "--id", fmt.Sprintf("%d", task.ID))
-	hb.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	if err := hb.Start(); err != nil {
+	// heartbeat for reaper...
+	binaryPath := os.Args[0]
+
+	// build command for heartbeat process
+	heartbeat := exec.Command(binaryPath, "heartbeat", "--id", fmt.Sprintf("%d", task.ID))
+
+	// define heartbeat process to run in its own session
+	heartbeat.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := heartbeat.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not start heartbeat: %v\n", err)
 	} else {
-		hb.Process.Release()
+		heartbeat.Process.Release()
 	}
-}
-
-var nonAlphanumDash = regexp.MustCompile(`[^a-z0-9-]+`)
-
-// titleSlug converts a task title to a lowercase hyphenated slug for branch names.
-func titleSlug(title string) string {
-	s := strings.ToLower(title)
-	s = strings.ReplaceAll(s, " ", "-")
-	s = nonAlphanumDash.ReplaceAllString(s, "")
-	// collapse consecutive hyphens
-	for strings.Contains(s, "--") {
-		s = strings.ReplaceAll(s, "--", "-")
-	}
-	s = strings.Trim(s, "-")
-	return s
 }

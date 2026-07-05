@@ -16,7 +16,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  list         list all tasks")
 		fmt.Fprintln(os.Stderr, "  claim        claim the next available task")
 		fmt.Fprintln(os.Stderr, "  finish       mark a claimed task as finished or error")
-		fmt.Fprintln(os.Stderr, "  validate     approve or reject a validating task")
 		fmt.Fprintln(os.Stderr, "  plan         write a plan for a claimed task")
 		fmt.Fprintln(os.Stderr, "  set-branch   record the branch created for a claimed task")
 		fmt.Fprintln(os.Stderr, "  archive      manually archive a finished or error task")
@@ -33,8 +32,6 @@ func main() {
 		commands.Claim()
 	case "finish":
 		commands.Finish()
-	case "validate":
-		commands.Validate()
 	case "plan":
 		commands.Plan()
 	case "set-branch":
