@@ -2,3 +2,9 @@ misc/
 
 # Binaries
 GoCLI/agentsynch
+
+# Worktrees
+AgentSynch-task-*/
+
+# Tests
+GoCLI/tests/
