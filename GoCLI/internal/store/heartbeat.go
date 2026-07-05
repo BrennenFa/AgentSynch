@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-// HeartbeatTask stamps the current time onto a claimed or validating task to signal the agent is alive.
+// HeartbeatTask stamps the current time onto a claimed task to signal the agent is alive.
 func HeartbeatTask(db *sql.DB, id int64) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	result, err := db.Exec(
-		`UPDATE tasks SET heartbeat_at = ? WHERE id = ? AND status IN ('claimed', 'validating')`,
+		`UPDATE tasks SET heartbeat_at = ? WHERE id = ? AND status = 'claimed'`,
 		now, id,
 	)
 	if err != nil {
@@ -21,7 +21,7 @@ func HeartbeatTask(db *sql.DB, id int64) error {
 		return err
 	}
 	if rows == 0 {
-		return fmt.Errorf("task-%d not found or not claimed/validating", id)
+		return fmt.Errorf("task-%d not found or not claimed", id)
 	}
 	return nil
 }
@@ -72,26 +72,5 @@ func ReapZombies(db *sql.DB, timeout time.Duration) (int64, error) {
 		return 0, err
 	}
 
-	// reap timed-out validators: clear validator fields but keep status 'validating'
-	// (work is done, just needs a new validator assigned)
-	r3, err := db.Exec(`
-		UPDATE tasks
-		SET validator_id = NULL, validation_claimed_at = NULL
-		WHERE status = 'validating'
-		  AND validator_id IS NOT NULL
-		  AND (
-		    (heartbeat_at IS NOT NULL AND heartbeat_at < ?)
-		    OR (heartbeat_at IS NULL AND validation_claimed_at < ?)
-		  )`,
-		threshold, threshold,
-	)
-	if err != nil {
-		return 0, err
-	}
-	n3, err := r3.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-
-	return n1 + n2 + n3, nil
+	return n1 + n2, nil
 }

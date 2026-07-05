@@ -10,8 +10,7 @@ import (
 
 // allColumns is the full column list used by every read query.
 const allColumns = `id, title, description, status, plan, claimed_by, claimed_at, created_at,
-	finished_at, output, error, heartbeat_at, attempts, validator_id, validation_claimed_at,
-	same_branch, branch_name, gh_url`
+	finished_at, output, error, heartbeat_at, attempts, same_branch, branch_name, gh_url`
 
 func scanTask(row interface {
 	Scan(...any) error
@@ -22,7 +21,7 @@ func scanTask(row interface {
 		&t.ID, &t.Title, &t.Description, &t.Status, &t.Plan,
 		&t.ClaimedBy, &t.ClaimedAt, &t.CreatedAt,
 		&t.FinishedAt, &t.Output, &t.Error,
-		&t.HeartbeatAt, &t.Attempts, &t.ValidatorID, &t.ValidationClaimedAt,
+		&t.HeartbeatAt, &t.Attempts,
 		&sameBranchInt, &t.BranchName, &t.GhURL,
 	)
 	t.SameBranch = sameBranchInt == 1
