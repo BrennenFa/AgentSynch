@@ -11,7 +11,7 @@ import (
 // Claim atomically claims the next task in a single serializable transaction.
 // It prefers available over validating tasks
 // Returns (task, validatorMode, error). Returns (nil, false, nil) if nothing to claim.
-func Claim(db *sql.DB, agentID string) (*objects.Task, bool, error) {
+func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task, bool, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, false, err
@@ -34,8 +34,8 @@ func Claim(db *sql.DB, agentID string) (*objects.Task, bool, error) {
 		workerTask.SameBranch = sameBranchInt == 1
 		claimedAt := time.Now().UTC().Format(time.RFC3339)
 		_, err = tx.Exec(
-			`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1 WHERE id = ?`,
-			agentID, claimedAt, workerTask.ID,
+			`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1, agent_hostname = ?, agent_pid = ? WHERE id = ?`,
+			agentID, claimedAt, hostname, pid, workerTask.ID,
 		)
 		if err != nil {
 			return nil, false, err

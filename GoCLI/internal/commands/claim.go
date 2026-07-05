@@ -23,7 +23,7 @@ func Claim() {
 	defer db.Close()
 
 	// claim next task atomically — worker mode if available, validator mode otherwise
-	task, validatorMode, err := store.Claim(db, agentID)
+	task, validatorMode, err := store.Claim(db, agentID, hostname, os.Getpid())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error claiming task: %v\n", err)
 		os.Exit(1)
