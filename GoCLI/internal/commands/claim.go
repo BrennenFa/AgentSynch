@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-<<<<<<< HEAD
 	"syscall"
-=======
->>>>>>> main
 
 	"agentsynch/internal/store"
 )
