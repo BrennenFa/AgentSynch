@@ -71,10 +71,8 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("could not initialize schema: %w", err)
 	}
 
-	// add new columns for validator tracking; ignore "duplicate column name" on existing DBs
+	// add new columns; ignore "duplicate column name" on existing DBs
 	migrations := []string{
-		`ALTER TABLE tasks ADD COLUMN validator_id TEXT`,
-		`ALTER TABLE tasks ADD COLUMN validation_claimed_at TEXT`,
 		// branch tracking: same_branch=1 means work on current branch; 0 (default) means create a new branch
 		`ALTER TABLE tasks ADD COLUMN same_branch INTEGER NOT NULL DEFAULT 0`,
 		// branch_name: the branch the agent created and worked on (NULL if same-branch or not yet set)
