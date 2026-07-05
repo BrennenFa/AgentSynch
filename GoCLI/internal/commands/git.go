@@ -11,6 +11,11 @@ func checkoutNewBranch(name string) error {
 	return exec.Command("git", "checkout", "-b", name).Run()
 }
 
+// createWorktree creates a new branch in a separate working tree directory.
+func createWorktree(path, branch string) error {
+	return exec.Command("git", "worktree", "add", path, "-b", branch).Run()
+}
+
 // pushBranch pushes a branch to origin, setting upstream tracking.
 func pushBranch(name string) error {
 	return exec.Command("git", "push", "-u", "origin", name).Run()
