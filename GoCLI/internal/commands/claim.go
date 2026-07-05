@@ -68,8 +68,6 @@ func Claim() {
 			fmt.Printf("hint: created branch %s in worktree ../AgentSynch-%s\n", created, created)
 		}
 	}
-	// print title as its own output field so it is unambiguous regardless of claim format
-	fmt.Printf("title: %s\n", task.Title)
 
 	// heartbeat for reaper...
 	binaryPath := os.Args[0]
