@@ -49,6 +49,7 @@ func Claim() {
 			slug := titleSlug(task.Title)
 			branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
 
+
 			// retry with numeric suffix if branch already exists
 			created := ""
 			for attempt := 1; attempt <= 10; attempt++ {

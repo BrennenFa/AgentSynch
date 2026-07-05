@@ -118,11 +118,11 @@ When `claim` prints "for validation", you are the reviewer — not the worker. F
 After claiming a worker task (not validation), the CLI handles branching automatically based on the hint printed by `claim`:
 
 - **`hint: same-branch task`** — work directly on the current branch. Nothing else to do.
-- **`hint: created branch task-N/...`** — the CLI already ran `git checkout -b` and recorded the branch name in the DB. Just do the work and commit.
-- **`hint: create branch task-N/... and record with set-branch`** — auto-checkout failed (e.g. you have uncommitted changes). Resolve manually:
+- **`hint: created branch task-N/... in worktree ../AgentSynch-task-N/...`** — the CLI already ran `git worktree add` and recorded the branch name in the DB. `cd` into the printed worktree directory and do the work there.
+- **`hint: create branch task-N/... and record with set-branch`** — auto-worktree creation failed (tried up to a `-10` numeric suffix). Resolve manually:
 
 ```bash
-git checkout -b task-5/fix-login-bug
+git worktree add ../AgentSynch-task-5/fix-login-bug -b task-5/fix-login-bug
 cd GoCLI && go run ./cmd/... set-branch --id 5 --name task-5/fix-login-bug
 ```
 
