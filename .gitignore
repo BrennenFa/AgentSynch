@@ -8,3 +8,4 @@ AgentSynch-task-*/
 
 # Tests
 GoCLI/tests/
+tests/

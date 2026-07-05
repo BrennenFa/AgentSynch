@@ -13,7 +13,7 @@ import (
 	"agentsynch/internal/store"
 )
 
-const githubInterval = 2 * time.Minute
+const githubInterval = 10 * time.Second
 
 // githubWorker runs in a goroutine and processes finished/error tasks into github
 func githubWorker(db *sql.DB) {

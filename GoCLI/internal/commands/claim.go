@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+<<<<<<< HEAD
 	"syscall"
+=======
+>>>>>>> main
 
 	"agentsynch/internal/store"
 )
@@ -38,7 +41,7 @@ func Claim() {
 	}
 
 	fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
-	fmt.Printf("title: %s\n", task.Title)
+	fmt.Printf("title: %s \n", task.Title)
 	// print branch hint so the agent knows what to do
 	// comes from --same-branch flag
 	if task.SameBranch {
@@ -68,6 +71,8 @@ func Claim() {
 			fmt.Printf("hint: created branch %s in worktree ../AgentSynch-%s\n", created, created)
 		}
 	}
+	// print title as its own output field so it is unambiguous regardless of claim format
+	fmt.Printf("title: %s\n", task.Title)
 
 	// heartbeat for reaper...
 	binaryPath := os.Args[0]
