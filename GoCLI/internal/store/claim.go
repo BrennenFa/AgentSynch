@@ -9,8 +9,7 @@ import (
 )
 
 // Claim atomically claims the next task in a single serializable transaction.
-// It prefers available (worker) tasks; only falls back to validating tasks when
-// no available task exists — preventing validation starvation.
+// It prefers available over validating tasks
 // Returns (task, validatorMode, error). Returns (nil, false, nil) if nothing to claim.
 func Claim(db *sql.DB, agentID string) (*objects.Task, bool, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})

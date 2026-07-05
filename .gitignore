@@ -2,3 +2,5 @@ misc/
 
 # Binaries
 GoCLI/agentsynch
+
+tests/

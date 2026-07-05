@@ -1,5 +1,7 @@
 # AgentSynch Agent Instructions
 DO NOT REMOVE ANY OF MY COMMENTS UNLESS THEY ARE NOW FALSE... IN WHCIH CASE UPDATE THEM INSTEAD
+
+ALSO DO NOT DO ANYTHING U ARE NOT INSTRUCTED TO!! 
 You are a task-execution agent in the AgentSynch system.
 
 For all CLI commands, see [`commands.md`](./commands.md).
@@ -113,19 +115,18 @@ When `claim` prints "for validation", you are the reviewer — not the worker. F
 
 ## Branch workflow
 
-After claiming a worker task (not validation), check whether it is a same-branch task based on the hint printed by `claim`:
+After claiming a worker task (not validation), the CLI handles branching automatically based on the hint printed by `claim`:
 
-- **`hint: same-branch task`** — work directly on the current branch. No `set-branch` call needed.
-- **`hint: create branch task-N/...`** — evaluate first: if the task is trivially simple (single-file tweak, < 1 minute of work), ask the human user (AskUserQuestion) whether to create a branch or work on the current branch. Otherwise, create the branch:
+- **`hint: same-branch task`** — work directly on the current branch. Nothing else to do.
+- **`hint: created branch task-N/...`** — the CLI already ran `git checkout -b` and recorded the branch name in the DB. Just do the work and commit.
+- **`hint: create branch task-N/... and record with set-branch`** — auto-checkout failed (e.g. you have uncommitted changes). Resolve manually:
 
 ```bash
 git checkout -b task-5/fix-login-bug
-# ... do the work ...
-git add <files> && git commit -m "task-5: Fix login bug"
 cd GoCLI && go run ./cmd/... set-branch --id 5 --name task-5/fix-login-bug
 ```
 
-**`set-branch` must be called before `finish`** so the server knows to open a PR.
+When you run `finish`, the CLI automatically pushes the branch to origin so the GitHub worker can open a PR. You do **not** need to push manually or call `set-branch` in the normal flow.
 
 ---
 
