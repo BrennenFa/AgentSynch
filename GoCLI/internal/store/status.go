@@ -45,6 +45,15 @@ func SetBranchName(db *sql.DB, id int64, branchName string) error {
 	return validateResults(result, err, id, "claimed")
 }
 
+// SetTmuxWindow records the tmux window name for an active task.
+func SetTmuxWindow(db *sql.DB, id int64, window string) error {
+	result, err := db.Exec(
+		`UPDATE tasks SET tmux_window = ? WHERE id = ? AND status = 'claimed'`,
+		window, id,
+	)
+	return validateResults(result, err, id, "claimed")
+}
+
 // ArchiveTask transitions a finished or error task to archived (soft-delete).
 func ArchiveTask(db *sql.DB, id int64) error {
 	result, err := db.Exec(

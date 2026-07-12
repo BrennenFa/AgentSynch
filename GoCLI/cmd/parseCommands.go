@@ -20,6 +20,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  set-branch   record the branch created for a claimed task")
 		fmt.Fprintln(os.Stderr, "  archive      manually archive a finished or error task")
 		fmt.Fprintln(os.Stderr, "  server       start the reaper server")
+	fmt.Fprintln(os.Stderr, "  worker       poll for tasks and run them in tmux windows")
 		os.Exit(1)
 	}
 
@@ -40,6 +41,8 @@ func main() {
 		commands.Archive()
 	case "server":
 		server.Server()
+	case "worker":
+		commands.Worker()
 	case "heartbeat":
 		server.Heartbeat() // internal — called by background loop spawned in claim.go
 	default:
