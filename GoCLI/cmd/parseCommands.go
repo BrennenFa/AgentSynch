@@ -19,7 +19,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  plan         write a plan for a claimed task")
 		fmt.Fprintln(os.Stderr, "  set-branch   record the branch created for a claimed task")
 		fmt.Fprintln(os.Stderr, "  archive      manually archive a finished or error task")
-		fmt.Fprintln(os.Stderr, "  server       start the reaper server")
+		fmt.Fprintln(os.Stderr, "  server       start the reaper + TUI")
+	fmt.Fprintln(os.Stderr, "  tui          open the live dashboard")
 	fmt.Fprintln(os.Stderr, "  worker       poll for tasks and run them in tmux windows")
 		os.Exit(1)
 	}
@@ -41,6 +42,8 @@ func main() {
 		commands.Archive()
 	case "server":
 		server.Server()
+	case "tui":
+		server.TUI()
 	case "worker":
 		commands.Worker()
 	case "heartbeat":
