@@ -20,6 +20,8 @@ type Task struct {
 	HeartbeatAt  *string `json:"heartbeat_at"`
 	Attempts     int     `json:"attempts"`
 	SameBranch   bool    `json:"same_branch"`
-	BranchName           *string `json:"branch_name"`
-	GhURL                *string `json:"gh_url"`
+	BranchName   *string `json:"branch_name"`
+	GhURL        *string `json:"gh_url"`
+	// SharedDocs is a JSON array of context_docs names relevant to this task (e.g. ["architecture","conventions"])
+	SharedDocs   *string `json:"shared_docs"`
 }

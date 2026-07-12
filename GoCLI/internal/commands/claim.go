@@ -69,6 +69,12 @@ func Claim() {
 		}
 	}
 
+	// print context file path so agent knows where to read/write task notes
+	fmt.Printf("context: context/tasks/task-%d.md\n", task.ID)
+	if task.SharedDocs != nil && *task.SharedDocs != "" {
+		fmt.Printf("shared-docs: %s\n", *task.SharedDocs)
+	}
+
 	// heartbeat for reaper...
 	binaryPath := os.Args[0]
 

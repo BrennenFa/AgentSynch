@@ -32,6 +32,14 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
     task_id       INTEGER NOT NULL REFERENCES tasks(id),
     depends_on_id INTEGER NOT NULL REFERENCES tasks(id),
     PRIMARY KEY (task_id, depends_on_id)
+);
+
+-- catalog of shared context docs in context/shared/
+CREATE TABLE IF NOT EXISTS context_docs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL UNIQUE,
+    path        TEXT NOT NULL,
+    description TEXT
 );`
 
 func Open() (*sql.DB, error) {
@@ -79,6 +87,8 @@ func Open() (*sql.DB, error) {
 		`ALTER TABLE tasks ADD COLUMN branch_name TEXT`,
 		// gh_url: URL of the GitHub PR or issue created by the server; guards against duplicate GH actions
 		`ALTER TABLE tasks ADD COLUMN gh_url TEXT`,
+		// shared_docs: JSON array of context_docs names relevant to this task (e.g. ["architecture","conventions"])
+		`ALTER TABLE tasks ADD COLUMN shared_docs TEXT`,
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {
@@ -87,6 +97,18 @@ func Open() (*sql.DB, error) {
 				return nil, fmt.Errorf("migration failed: %w", err)
 			}
 		}
+	}
+
+	// seed starter shared docs if not already present
+	starterDocs := []struct{ name, path, desc string }{
+		{"architecture", "context/shared/architecture.md", "System overview: components, DB schema, worktree flow, context system"},
+		{"conventions", "context/shared/conventions.md", "Coding and workflow conventions for agents and humans"},
+	}
+	for _, d := range starterDocs {
+		_, _ = db.Exec(
+			`INSERT OR IGNORE INTO context_docs (name, path, description) VALUES (?, ?, ?)`,
+			d.name, d.path, d.desc,
+		)
 	}
 
 	return db, nil
