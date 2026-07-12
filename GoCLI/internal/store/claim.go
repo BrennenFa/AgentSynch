@@ -8,54 +8,34 @@ import (
 	"agentsynch/internal/objects"
 )
 
-// Claim atomically claims the next task in a single serializable transaction.
-// It prefers available over validating tasks
-// Returns (task, validatorMode, error). Returns (nil, false, nil) if nothing to claim.
-func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task, bool, error) {
+// Claim atomically claims the next available task in a serializable transaction.
+// Returns (nil, nil) if no tasks are available.
+func Claim(db *sql.DB, agentID string) (*objects.Task, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	// Look for the oldest available task
-	var workerTask objects.Task
+	// look for the oldest available task
+	var task objects.Task
 	var sameBranchInt int
-	workerErr := tx.QueryRow(
+	err = tx.QueryRow(
 		`SELECT id, title, description, status, created_at, same_branch FROM tasks WHERE status = 'available' ORDER BY id LIMIT 1`,
-	).Scan(&workerTask.ID, &workerTask.Title, &workerTask.Description, &workerTask.Status, &workerTask.CreatedAt, &sameBranchInt)
+	).Scan(&task.ID, &task.Title, &task.Description, &task.Status, &task.CreatedAt, &sameBranchInt)
 
-	if workerErr != nil && workerErr != sql.ErrNoRows {
-		return nil, workerErr
-	}
-
-	if workerErr == nil {
-		// Found an available task — claim it as worker
-		workerTask.SameBranch = sameBranchInt == 1
-		claimedAt := time.Now().UTC().Format(time.RFC3339)
-		_, err = tx.Exec(
-			`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1, agent_hostname = ?, agent_pid = ? WHERE id = ?`,
-			agentID, claimedAt, hostname, pid, workerTask.ID,
-		)
-		if err != nil {
-			return nil, false, err
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, false, err
-		}
-		workerTask.Status = "claimed"
-		workerTask.ClaimedBy = &agentID
-		workerTask.ClaimedAt = &claimedAt
-		return &workerTask, false, nil
-	if workerErr == sql.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return nil, nil
 	}
+	if err != nil {
+		return nil, err
+	}
 
-	workerTask.SameBranch = sameBranchInt == 1
+	task.SameBranch = sameBranchInt == 1
 	claimedAt := time.Now().UTC().Format(time.RFC3339)
 	_, err = tx.Exec(
 		`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1 WHERE id = ?`,
-		agentID, claimedAt, workerTask.ID,
+		agentID, claimedAt, task.ID,
 	)
 	if err != nil {
 		return nil, err
@@ -63,8 +43,9 @@ func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task,
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	workerTask.Status = "claimed"
-	workerTask.ClaimedBy = &agentID
-	workerTask.ClaimedAt = &claimedAt
-	return &workerTask, nil
+
+	task.Status = "claimed"
+	task.ClaimedBy = &agentID
+	task.ClaimedAt = &claimedAt
+	return &task, nil
 }
