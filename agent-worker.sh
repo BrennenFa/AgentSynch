@@ -1,4 +1,6 @@
 #!/bin/bash
+# DEPRECATED: use `agentsynch worker` instead — it manages tmux windows automatically.
+# Kept as a fallback for environments without tmux.
 INTERVAL=${1:-10}
 BINARY="GoCLI/agentsynch"   # use compiled binary, not go run
 

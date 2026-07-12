@@ -82,6 +82,8 @@ func Open() (*sql.DB, error) {
 		// agent_hostname and agent_pid allow the reaper to kill the actual process, not just reset the DB
 		`ALTER TABLE tasks ADD COLUMN agent_hostname TEXT`,
 		`ALTER TABLE tasks ADD COLUMN agent_pid INTEGER`,
+		// tmux_window: name of the tmux window running this task's claude session
+		`ALTER TABLE tasks ADD COLUMN tmux_window TEXT`,
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {

@@ -20,6 +20,7 @@ type Task struct {
 	HeartbeatAt  *string `json:"heartbeat_at"`
 	Attempts     int     `json:"attempts"`
 	SameBranch   bool    `json:"same_branch"`
-	BranchName           *string `json:"branch_name"`
-	GhURL                *string `json:"gh_url"`
+	BranchName   *string `json:"branch_name"`
+	GhURL        *string `json:"gh_url"`
+	TmuxWindow   *string `json:"tmux_window"`
 }
