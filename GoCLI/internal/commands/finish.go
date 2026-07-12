@@ -53,9 +53,11 @@ func Finish() {
 			os.Exit(1)
 		}
 		fmt.Printf("task-%d marked as error\n", *idFlag)
-		if task != nil {
-			// refresh output/error fields for issue body
-			task.Error = errorFlag
+		// re-fetch task so createIssue sees the true DB state after ErrorTask
+		task, err = store.GetTask(db, *idFlag)
+		if err != nil || task == nil {
+			fmt.Printf("warning: could not re-fetch task for issue: %v\n", err)
+		} else {
 			if url, err := createIssue(*task); err != nil {
 				fmt.Printf("warning: could not create GitHub issue: %v\n", err)
 			} else {
@@ -74,13 +76,17 @@ func Finish() {
 	fmt.Printf("task-%d marked as finished\n", *idFlag)
 
 	if hasBranch {
-		// refresh output field for PR body
-		task.Output = outputFlag
-		if url, err := createPR(*task); err != nil {
-			fmt.Printf("warning: could not create GitHub PR: %v\n", err)
+		// re-fetch task so createPR sees the true DB state after FinishTask
+		task, err = store.GetTask(db, *idFlag)
+		if err != nil || task == nil {
+			fmt.Printf("warning: could not re-fetch task for PR: %v\n", err)
 		} else {
-			_ = store.SetDbGit(db, *idFlag, url)
-			fmt.Printf("pr: %s\n", url)
+			if url, err := createPR(*task); err != nil {
+				fmt.Printf("warning: could not create GitHub PR: %v\n", err)
+			} else {
+				_ = store.SetDbGit(db, *idFlag, url)
+				fmt.Printf("pr: %s\n", url)
+			}
 		}
 	}
 }
