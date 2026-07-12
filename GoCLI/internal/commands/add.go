@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +18,6 @@ func Add() {
 	titleFlag := flags.String("title", "", "task title")
 	descFlag := flags.String("description", "", "task description")
 	planFlag := flags.String("plan", "", "optional plan for the task")
-	dependsOnFlag := flags.String("depends-on", "", "comma-separated task IDs this task depends on (e.g. 1,3)")
 	sameBranchFlag := flags.Bool("same-branch", false, "work on current branch; no new branch needed")
 	flags.Parse(os.Args[2:])
 
@@ -51,25 +49,6 @@ func Add() {
 		plan = &planInput
 	}
 
-	var dependencies []int64
-	// validate dependencies
-	if *dependsOnFlag != "" {
-		// look at each dependency
-		for _, part := range strings.Split(*dependsOnFlag, ",") {
-			part = strings.TrimSpace(part)
-			if part == "" {
-				continue
-			}
-			depID, err := strconv.ParseInt(part, 10, 64)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "invalid dependency ID %q: must be an integer\n", part)
-				os.Exit(1)
-			}
-			// append each dependency
-			dependencies = append(dependencies, depID)
-		}
-	}
-
 	db, err := store.Open()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
@@ -86,15 +65,11 @@ func Add() {
 		SameBranch:  *sameBranchFlag,
 	}
 
-	id, err := store.AddTask(db, task, dependencies)
+	id, err := store.AddTask(db, task)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error saving task: %v\n", err)
 		os.Exit(1)
 	}
 
-	if len(dependencies) > 0 {
-		fmt.Printf("added task-%d (blocked): %s\n", id, task.Title)
-	} else {
-		fmt.Printf("added task-%d: %s\n", id, task.Title)
-	}
+	fmt.Printf("added task-%d: %s\n", id, task.Title)
 }

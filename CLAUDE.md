@@ -83,11 +83,7 @@ cd GoCLI && go run ./cmd/... add --title "..." --description "..." --plan "appro
 
 ## Branch workflow
 
-<<<<<<< HEAD
 After claiming a task, the CLI handles branching automatically based on the hint printed by `claim`:
-=======
-After claiming a worker task (not validation), the CLI handles branching automatically based on the hint printed by `claim`:
->>>>>>> main
 
 - **`hint: same-branch task`** — work directly on the current branch. Nothing else to do.
 - **`hint: created branch task-N/... in worktree ../AgentSynch-task-N/...`** — the CLI already ran `git worktree add` and recorded the branch name in the DB. `cd` into the printed worktree directory and do the work there.

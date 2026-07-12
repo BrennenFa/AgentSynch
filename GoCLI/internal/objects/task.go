@@ -17,7 +17,6 @@ type Task struct {
 	FinishedAt   *string  `json:"finished_at"`
 	Output       *string  `json:"output"`
 	Error        *string  `json:"error"`
-	Dependencies []int64  `json:"dependencies"`
 	HeartbeatAt  *string `json:"heartbeat_at"`
 	Attempts     int     `json:"attempts"`
 	SameBranch   bool    `json:"same_branch"`

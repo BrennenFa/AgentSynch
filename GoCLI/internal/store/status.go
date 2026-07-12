@@ -1,44 +1,17 @@
 package store
 
 import (
-	"context"
 	"database/sql"
 	"time"
 )
 
 func FinishTask(db *sql.DB, id int64, output string) error {
-	tx, err := db.BeginTx(context.Background(), nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
 	finishedAt := time.Now().UTC().Format(time.RFC3339)
-	result, err := tx.Exec(
+	result, err := db.Exec(
 		`UPDATE tasks SET status = 'finished', finished_at = ?, output = ? WHERE id = ? AND status = 'claimed'`,
 		finishedAt, output, id,
 	)
-	if err := validateResults(result, err, id, "claimed"); err != nil {
-		return err
-	}
-
-	// unblock any dependent tasks whose other dependencies are all finished
-	_, err = tx.Exec(`
-		UPDATE tasks
-		SET status = 'available'
-		WHERE status = 'blocked'
-		  AND id NOT IN (
-		      SELECT d.task_id
-		      FROM task_dependencies d
-		      JOIN tasks dep ON dep.id = d.depends_on_id
-		      WHERE dep.status != 'finished'
-		  )
-	`)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	return validateResults(result, err, id, "claimed")
 }
 
 func ErrorTask(db *sql.DB, id int64, errMsg string) error {
