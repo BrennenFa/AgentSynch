@@ -3,14 +3,38 @@ package store
 import (
 	"context"
 	"database/sql"
+	"math/rand"
+	"strings"
 	"time"
 
 	"agentsynch/internal/objects"
 )
 
+const claimMaxRetries = 5
+const claimBaseDelay = 100 * time.Millisecond
+
 // Claim atomically claims the next available task in a single serializable transaction.
+// Retries with exponential backoff on SQLite busy/serialization errors.
 // Returns (task, error). Returns (nil, nil) if no tasks are available.
 func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task, error) {
+	for attempt := 0; attempt < claimMaxRetries; attempt++ {
+		task, err := claimOnce(db, agentID, hostname, pid)
+		if err == nil {
+			return task, nil
+		}
+		// retry on SQLite busy or serialization failure
+		if !isRetryable(err) || attempt == claimMaxRetries-1 {
+			return nil, err
+		}
+		// exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms ...
+		delay := claimBaseDelay * (1 << attempt)
+		jitter := time.Duration(rand.Int63n(int64(delay) / 2))
+		time.Sleep(delay + jitter)
+	}
+	return nil, nil
+}
+
+func claimOnce(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, err
@@ -48,4 +72,10 @@ func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task,
 	workerTask.ClaimedBy = &agentID
 	workerTask.ClaimedAt = &claimedAt
 	return &workerTask, nil
+}
+
+// isRetryable returns true for SQLite busy or serialization errors.
+func isRetryable(err error) bool {
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "busy") || strings.Contains(s, "locked") || strings.Contains(s, "serializ")
 }
