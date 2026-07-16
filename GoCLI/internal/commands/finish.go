@@ -28,37 +28,65 @@ func Finish() {
 	}
 	defer db.Close()
 
-	// Auto-push branch if one was recorded for this task
-	// TODO --- what does recorderd for this task mean??? is it useful?
+	// fetch task to get branch name and metadata for PR/issue creation
 	task, err := store.GetTask(db, *idFlag)
-	
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not fetch task for branch push: %v\n", err)
-	} else if task != nil && task.BranchName != nil && *task.BranchName != "" {
-		// task is available and has a branch name recorded. --> try to push it
+		fmt.Fprintf(os.Stderr, "warning: could not fetch task: %v\n", err)
+	}
+
+	hasBranch := task != nil && task.BranchName != nil && *task.BranchName != ""
+
+	// push branch if one was recorded for this task
+	if hasBranch {
 		if err := pushBranch(*task.BranchName); err != nil {
 			fmt.Printf("warning: could not push branch %s: %v\n", *task.BranchName, err)
+			hasBranch = false
 		} else {
 			fmt.Printf("pushed branch %s to origin\n", *task.BranchName)
 		}
 	}
 
-	// Case 1: an error exists
+	// Case 1: error — mark task, open GitHub issue
 	if *errorFlag != "" {
 		if err := store.ErrorTask(db, *idFlag, *errorFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Printf("task-%d marked as error\n", *idFlag)
+		// re-fetch task so createIssue sees the true DB state after ErrorTask
+		task, err = store.GetTask(db, *idFlag)
+		if err != nil || task == nil {
+			fmt.Printf("warning: could not re-fetch task for issue: %v\n", err)
+		} else {
+			if url, err := createIssue(*task); err != nil {
+				fmt.Printf("warning: could not create GitHub issue: %v\n", err)
+			} else {
+				_ = store.SetDbGit(db, *idFlag, url)
+				fmt.Printf("issue: %s\n", url)
+			}
+		}
 		return
 	}
 
-
-	// Default Case --> task marked finished
+	// Default case — mark finished, open GitHub PR
 	if err := store.FinishTask(db, *idFlag, *outputFlag); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
-
 	fmt.Printf("task-%d marked as finished\n", *idFlag)
+
+	if hasBranch {
+		// re-fetch task so createPR sees the true DB state after FinishTask
+		task, err = store.GetTask(db, *idFlag)
+		if err != nil || task == nil {
+			fmt.Printf("warning: could not re-fetch task for PR: %v\n", err)
+		} else {
+			if url, err := createPR(*task); err != nil {
+				fmt.Printf("warning: could not create GitHub PR: %v\n", err)
+			} else {
+				_ = store.SetDbGit(db, *idFlag, url)
+				fmt.Printf("pr: %s\n", url)
+			}
+		}
+	}
 }

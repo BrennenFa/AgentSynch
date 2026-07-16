@@ -64,4 +64,3 @@ func claimAttempt(db *sql.DB, agentID string, hostname string, pid int) (*object
 	workerTask.ClaimedAt = &claimedAt
 	return &workerTask, nil
 }
-
