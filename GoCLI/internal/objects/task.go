@@ -19,7 +19,6 @@ type Task struct {
 	Error        *string  `json:"error"`
 	HeartbeatAt  *string `json:"heartbeat_at"`
 	Attempts     int     `json:"attempts"`
-	SameBranch   bool    `json:"same_branch"`
 	BranchName           *string `json:"branch_name"`
 	GhURL                *string `json:"gh_url"`
 }
