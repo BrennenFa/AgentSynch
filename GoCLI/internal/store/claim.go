@@ -32,6 +32,7 @@ func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task,
 
 	// Found an available task — claim it
 	claimedAt := time.Now().UTC().Format(time.RFC3339)
+
 	_, err = tx.Exec(
 		`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1, agent_hostname = ?, agent_pid = ? WHERE id = ?`,
 		agentID, claimedAt, hostname, pid, workerTask.ID,
@@ -42,6 +43,7 @@ func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task,
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
+
 	workerTask.Status = "claimed"
 	workerTask.ClaimedBy = &agentID
 	workerTask.ClaimedAt = &claimedAt
