@@ -17,11 +17,8 @@ type Task struct {
 	FinishedAt   *string  `json:"finished_at"`
 	Output       *string  `json:"output"`
 	Error        *string  `json:"error"`
-	Dependencies []int64  `json:"dependencies"`
-	HeartbeatAt          *string `json:"heartbeat_at"`
-	Attempts             int     `json:"attempts"`
-	ValidatorID          *string `json:"validator_id"`
-	ValidationClaimedAt  *string `json:"validation_claimed_at"`
+	HeartbeatAt  *string `json:"heartbeat_at"`
+	Attempts     int     `json:"attempts"`
 	BranchName           *string `json:"branch_name"`
 	GhURL                *string `json:"gh_url"`
 }

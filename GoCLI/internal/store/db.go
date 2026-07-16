@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
 );`
 
 func Open() (*sql.DB, error) {
-
 	// issue if cannot find correct dir
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -61,7 +60,7 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("could not set WAL mode: %w", err)
 	}
 
-	// enforces foreign key dependency w dag
+	// enforce foreign key constraints for DAG dependency integrity
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("could not enable foreign keys: %w", err)
@@ -72,14 +71,15 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("could not initialize schema: %w", err)
 	}
 
-	// add new columns for validator tracking; ignore "duplicate column name" on existing DBs
+	// add new columns; ignore "duplicate column name" on existing DBs
 	migrations := []string{
-		`ALTER TABLE tasks ADD COLUMN validator_id TEXT`,
-		`ALTER TABLE tasks ADD COLUMN validation_claimed_at TEXT`,
 		// branch_name: the branch the agent created and worked on (NULL if not yet set)
 		`ALTER TABLE tasks ADD COLUMN branch_name TEXT`,
 		// gh_url: URL of the GitHub PR or issue created by the server; guards against duplicate GH actions
 		`ALTER TABLE tasks ADD COLUMN gh_url TEXT`,
+		// agent_hostname and agent_pid allow the reaper to kill the actual process, not just reset the DB
+		`ALTER TABLE tasks ADD COLUMN agent_hostname TEXT`,
+		`ALTER TABLE tasks ADD COLUMN agent_pid INTEGER`,
 	}
 	for _, m := range migrations {
 		if _, err := db.Exec(m); err != nil {

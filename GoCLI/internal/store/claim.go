@@ -8,73 +8,42 @@ import (
 	"agentsynch/internal/objects"
 )
 
-// Claim atomically claims the next task in a single serializable transaction.
-// It prefers available (worker) tasks; only falls back to validating tasks when
-// no available task exists — preventing validation starvation.
-// Returns (task, validatorMode, error). Returns (nil, false, nil) if nothing to claim.
-func Claim(db *sql.DB, agentID string) (*objects.Task, bool, error) {
+// Claim atomically claims the next available task in a single serializable transaction.
+// Returns (task, error). Returns (nil, nil) if no tasks are available.
+func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	defer tx.Rollback()
 
-	// 1. Look for the oldest available (worker) task
+	// Look for the oldest available task
 	var workerTask objects.Task
 	workerErr := tx.QueryRow(
 		`SELECT id, title, description, status, created_at FROM tasks WHERE status = 'available' ORDER BY id LIMIT 1`,
 	).Scan(&workerTask.ID, &workerTask.Title, &workerTask.Description, &workerTask.Status, &workerTask.CreatedAt)
 
-	if workerErr != nil && workerErr != sql.ErrNoRows {
-		return nil, false, workerErr
+	if workerErr == sql.ErrNoRows {
+		return nil, nil
+	}
+	if workerErr != nil {
+		return nil, workerErr
 	}
 
-	if workerErr == nil {
-		// Found an available task — claim it as worker
-		claimedAt := time.Now().UTC().Format(time.RFC3339)
-		_, err = tx.Exec(
-			`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1 WHERE id = ?`,
-			agentID, claimedAt, workerTask.ID,
-		)
-		if err != nil {
-			return nil, false, err
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, false, err
-		}
-		workerTask.Status = "claimed"
-		workerTask.ClaimedBy = &agentID
-		workerTask.ClaimedAt = &claimedAt
-		return &workerTask, false, nil
-	}
-
-	// 2. No available task — look for an unclaimed validating task
-	var valTask objects.Task
-	valErr := tx.QueryRow(
-		`SELECT id, title, description, status, created_at FROM tasks WHERE status = 'validating' AND validator_id IS NULL ORDER BY id LIMIT 1`,
-	).Scan(&valTask.ID, &valTask.Title, &valTask.Description, &valTask.Status, &valTask.CreatedAt)
-
-	if valErr == sql.ErrNoRows {
-		return nil, false, nil
-	}
-	if valErr != nil {
-		return nil, false, valErr
-	}
-
-	// Claim it as validator — does not increment attempts
+	// Found an available task — claim it
 	claimedAt := time.Now().UTC().Format(time.RFC3339)
 	_, err = tx.Exec(
-		`UPDATE tasks SET validator_id = ?, validation_claimed_at = ? WHERE id = ?`,
-		agentID, claimedAt, valTask.ID,
+		`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1, agent_hostname = ?, agent_pid = ? WHERE id = ?`,
+		agentID, claimedAt, hostname, pid, workerTask.ID,
 	)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, false, err
+		return nil, err
 	}
-
-	valTask.ValidatorID = &agentID
-	valTask.ValidationClaimedAt = &claimedAt
-	return &valTask, true, nil
+	workerTask.Status = "claimed"
+	workerTask.ClaimedBy = &agentID
+	workerTask.ClaimedAt = &claimedAt
+	return &workerTask, nil
 }

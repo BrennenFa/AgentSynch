@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
-	"strings"
+	"syscall"
 
 	"agentsynch/internal/store"
 )
@@ -15,6 +14,8 @@ func Claim() {
 	if err != nil {
 		hostname = "unknown"
 	}
+
+	// unique agent id based on hostname and process id
 	agentID := fmt.Sprintf("agent-%s-%d", hostname, os.Getpid())
 
 	db, err := store.Open()
@@ -24,8 +25,9 @@ func Claim() {
 	}
 	defer db.Close()
 
-	// claim next task atomically — worker mode if available, validator mode otherwise
-	task, validatorMode, err := store.Claim(db, agentID)
+
+	// claim next available task atomically
+	task, err := store.Claim(db, agentID, hostname, os.Getpid())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error claiming task: %v\n", err)
 		os.Exit(1)
@@ -36,43 +38,44 @@ func Claim() {
 		return
 	}
 
-	if validatorMode {
-		fmt.Printf("claimed task-%d for validation: %s (agent: %s)\n", task.ID, task.Title, agentID)
-	} else {
-		fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
+	fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
+	fmt.Printf("title: %s \n", task.Title)
 
-		slug := titleSlug(task.Title)
-		branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
-		fmt.Printf("hint: create branch %s and record with set-branch --id %d --name %s\n", branchName, task.ID, branchName)
+	slug := titleSlug(task.Title)
+	branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
 
-		if task.Plan != nil && *task.Plan != "" {
-			fmt.Printf("plan: %s\n", *task.Plan)
-		} else {
-			fmt.Printf("warning: no plan — write one before starting:\n  agentsynch plan --id %d --plan \"your approach\"\n", task.ID)
+	// retry with numeric suffix if branch already exists
+	created := ""
+	for attempt := 1; attempt <= 10; attempt++ {
+		candidate := branchName
+		if attempt > 1 {
+			candidate = fmt.Sprintf("%s-%d", branchName, attempt)
+		}
+		if err := createWorktree("../AgentSynch-"+candidate, candidate); err == nil {
+			created = candidate
+			break
 		}
 	}
-
-	// spawn a detached background heartbeat loop so the task is not reaped as a zombie;
-	// uses the same binary that is currently running so no extra setup is needed
-	binary := os.Args[0]
-
-	// run a subprocess that heartbeats at a predefined interval
-	script := fmt.Sprintf("while true; do sleep 600; %s heartbeat --id %d; done", binary, task.ID)
-	hb := exec.Command("sh", "-c", script)
-	hb.Start() // detach — we never call Wait(); the shell loop outlives this process
-}
-
-var nonAlphanumDash = regexp.MustCompile(`[^a-z0-9-]+`)
-
-// titleSlug converts a task title to a lowercase hyphenated slug for branch names.
-func titleSlug(title string) string {
-	s := strings.ToLower(title)
-	s = strings.ReplaceAll(s, " ", "-")
-	s = nonAlphanumDash.ReplaceAllString(s, "")
-	// collapse consecutive hyphens
-	for strings.Contains(s, "--") {
-		s = strings.ReplaceAll(s, "--", "-")
+	if created == "" {
+		fmt.Printf("warning: could not create branch %s (tried up to -10 suffix)\n", branchName)
+	} else {
+		if err := store.SetBranchName(db, task.ID, created); err != nil {
+			fmt.Printf("warning: could not record branch name: %v\n", err)
+		}
+		fmt.Printf("hint: created branch %s in worktree ../AgentSynch-%s\n", created, created)
 	}
-	s = strings.Trim(s, "-")
-	return s
+
+	// heartbeat for reaper...
+	binaryPath := os.Args[0]
+
+	// build command for heartbeat process
+	heartbeat := exec.Command(binaryPath, "heartbeat", "--id", fmt.Sprintf("%d", task.ID))
+
+	// define heartbeat process to run in its own session
+	heartbeat.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := heartbeat.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not start heartbeat: %v\n", err)
+	} else {
+		heartbeat.Process.Release()
+	}
 }
