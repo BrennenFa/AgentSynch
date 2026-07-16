@@ -27,7 +27,7 @@ func Claim() {
 
 
 	// claim next available task atomically
-	task, err := store.Claim(db, agentID)
+	task, err := store.Claim(db, agentID, hostname, os.Getpid())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error claiming task: %v\n", err)
 		os.Exit(1)
@@ -40,34 +40,29 @@ func Claim() {
 
 	fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
 	fmt.Printf("title: %s \n", task.Title)
-	// print branch hint so the agent knows what to do
-	// comes from --same-branch flag
-	if task.SameBranch {
-		fmt.Println("hint: same-branch task — work on current branch, no new branch needed")
-	} else {
-		slug := titleSlug(task.Title)
-		branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
 
-		// retry with numeric suffix if branch already exists
-		created := ""
-		for attempt := 1; attempt <= 10; attempt++ {
-			candidate := branchName
-			if attempt > 1 {
-				candidate = fmt.Sprintf("%s-%d", branchName, attempt)
-			}
-			if err := createWorktree("../AgentSynch-"+candidate, candidate); err == nil {
-				created = candidate
-				break
-			}
+	slug := titleSlug(task.Title)
+	branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
+
+	// retry with numeric suffix if branch already exists
+	created := ""
+	for attempt := 1; attempt <= 10; attempt++ {
+		candidate := branchName
+		if attempt > 1 {
+			candidate = fmt.Sprintf("%s-%d", branchName, attempt)
 		}
-		if created == "" {
-			fmt.Printf("warning: could not create branch %s (tried up to -10 suffix)\n", branchName)
-		} else {
-			if err := store.SetBranchName(db, task.ID, created); err != nil {
-				fmt.Printf("warning: could not record branch name: %v\n", err)
-			}
-			fmt.Printf("hint: created branch %s in worktree ../AgentSynch-%s\n", created, created)
+		if err := createWorktree("../AgentSynch-"+candidate, candidate); err == nil {
+			created = candidate
+			break
 		}
+	}
+	if created == "" {
+		fmt.Printf("warning: could not create branch %s (tried up to -10 suffix)\n", branchName)
+	} else {
+		if err := store.SetBranchName(db, task.ID, created); err != nil {
+			fmt.Printf("warning: could not record branch name: %v\n", err)
+		}
+		fmt.Printf("hint: created branch %s in worktree ../AgentSynch-%s\n", created, created)
 	}
 
 	// heartbeat for reaper...

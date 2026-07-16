@@ -37,17 +37,16 @@ func runGithubPass(db *sql.DB) {
 
 	// iterate through finished tasks, create PR and archive each one
 	for _, task := range finished {
-		var url string
 		// only create a PR if the agent worked on a dedicated branch
-		if task.BranchName != nil && *task.BranchName != "" {
-			url, err = createPR(task)
-			if err != nil {
-				log.Printf("github worker: error creating PR for task-%d: %v", task.ID, err)
-				continue
-			}
-		} else {
-			// if no branch, assume same branch pr
-			url = "same-branch"
+		if task.BranchName == nil || *task.BranchName == "" {
+			log.Printf("github worker: task-%d has no branch name, skipping PR creation", task.ID)
+			continue
+		}
+
+		url, err := createPR(task)
+		if err != nil {
+			log.Printf("github worker: error creating PR for task-%d: %v", task.ID, err)
+			continue
 		}
 
 		// archive the task
