@@ -9,7 +9,7 @@ import (
 )
 
 // Claim atomically claims the next available task, retrying up to 3 times on any error.
-// TODO: add smarter retry logic (error-type filtering, jitter, backoff tuning)
+// TODO: add smarter retry logic (error-type filtering)
 func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task, error) {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
