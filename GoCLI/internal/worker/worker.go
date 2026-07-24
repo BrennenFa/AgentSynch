@@ -29,7 +29,7 @@ func Run(interval time.Duration) {
 	for {
 		agentID := fmt.Sprintf("agent-%s-%d", hostname, os.Getpid())
 
-		task, err := store.Claim(db, agentID)
+		task, err := store.Claim(db, agentID, hostname, os.Getpid())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error claiming task: %v\n", err)
 			time.Sleep(interval)
