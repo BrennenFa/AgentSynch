@@ -34,16 +34,13 @@ func AddTask(db *sql.DB, task objects.Task) (int64, error) {
 	}
 	defer tx.Rollback()
 
-	sameBranchInt := 0
-	if task.SameBranch {
-		sameBranchInt = 1
-	}
+	// insert tasks based on the given items
 	result, err := tx.Exec(
-		`INSERT INTO tasks (title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error, same_branch)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO tasks (title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		task.Title, task.Description, task.Status, task.Plan,
 		task.ClaimedBy, task.ClaimedAt, task.CreatedAt,
-		task.FinishedAt, task.Output, task.Error, sameBranchInt,
+		task.FinishedAt, task.Output, task.Error,
 	)
 	if err != nil {
 		return 0, err
