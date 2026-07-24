@@ -23,7 +23,6 @@ func Claim(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task,
 	return nil, lastErr
 }
 
-
 // attempt a single claim
 func claimAttempt(db *sql.DB, agentID string, hostname string, pid int) (*objects.Task, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -32,25 +31,27 @@ func claimAttempt(db *sql.DB, agentID string, hostname string, pid int) (*object
 	}
 	defer tx.Rollback()
 
-	// Look for the oldest available task
-	var workerTask objects.Task
-	workerErr := tx.QueryRow(
-		`SELECT id, title, description, status, created_at FROM tasks WHERE status = 'available' ORDER BY id LIMIT 1`,
-	).Scan(&workerTask.ID, &workerTask.Title, &workerTask.Description, &workerTask.Status, &workerTask.CreatedAt)
+	// look for the oldest available task
+	var task objects.Task
+	var sameBranchInt int
+	err = tx.QueryRow(
+		`SELECT id, title, description, status, created_at, same_branch FROM tasks WHERE status = 'available' ORDER BY id LIMIT 1`,
+	).Scan(&task.ID, &task.Title, &task.Description, &task.Status, &task.CreatedAt, &sameBranchInt)
 
-	if workerErr == sql.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-	if workerErr != nil {
-		return nil, workerErr
+	if err != nil {
+		return nil, err
 	}
 
-	// Found an available task — claim it
+	task.SameBranch = sameBranchInt == 1
+
 	claimedAt := time.Now().UTC().Format(time.RFC3339)
 
 	_, err = tx.Exec(
 		`UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?, attempts = attempts + 1, agent_hostname = ?, agent_pid = ? WHERE id = ?`,
-		agentID, claimedAt, hostname, pid, workerTask.ID,
+		agentID, claimedAt, hostname, pid, task.ID,
 	)
 	if err != nil {
 		return nil, err
@@ -59,8 +60,8 @@ func claimAttempt(db *sql.DB, agentID string, hostname string, pid int) (*object
 		return nil, err
 	}
 
-	workerTask.Status = "claimed"
-	workerTask.ClaimedBy = &agentID
-	workerTask.ClaimedAt = &claimedAt
-	return &workerTask, nil
+	task.Status = "claimed"
+	task.ClaimedBy = &agentID
+	task.ClaimedAt = &claimedAt
+	return &task, nil
 }

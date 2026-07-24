@@ -19,6 +19,8 @@ type Task struct {
 	Error        *string  `json:"error"`
 	HeartbeatAt  *string `json:"heartbeat_at"`
 	Attempts     int     `json:"attempts"`
-	BranchName           *string `json:"branch_name"`
-	GhURL                *string `json:"gh_url"`
+	SameBranch   bool    `json:"same_branch"`
+	BranchName   *string `json:"branch_name"`
+	GhURL        *string `json:"gh_url"`
+	TmuxWindow   *string `json:"tmux_window"`
 }
