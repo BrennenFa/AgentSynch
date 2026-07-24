@@ -15,18 +15,22 @@ func scanTask(row interface {
 	Scan(...any) error
 }) (objects.Task, error) {
 	var t objects.Task
+	var sameBranchInt int
 	err := row.Scan(
 		&t.ID, &t.Title, &t.Description, &t.Status, &t.Plan,
 		&t.ClaimedBy, &t.ClaimedAt, &t.CreatedAt,
 		&t.FinishedAt, &t.Output, &t.Error,
 		&t.HeartbeatAt, &t.Attempts,
-<<<<<<< HEAD
 		&sameBranchInt, &t.BranchName, &t.GhURL, &t.TmuxWindow,
-=======
-		&t.BranchName, &t.GhURL,
->>>>>>> main
 	)
+	t.SameBranch = sameBranchInt == 1
 	return t, err
+}
+
+// DeleteTask permanently removes a task from the database.
+func DeleteTask(db *sql.DB, id int64) error {
+	_, err := db.Exec(`DELETE FROM tasks WHERE id = ?`, id)
+	return err
 }
 
 func AddTask(db *sql.DB, task objects.Task) (int64, error) {

@@ -31,8 +31,6 @@ func Heartbeat() {
 	defer db.Close()
 
 	for {
-		time.Sleep(5 * time.Minute)
-
 		// get and validate task
 		task, err := store.GetTask(db, *idFlag)
 		if err != nil || task == nil || task.Status != "claimed" {
@@ -43,5 +41,7 @@ func Heartbeat() {
 		if err := store.HeartbeatTask(db, *idFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "heartbeat error: %v\n", err)
 		}
+
+		time.Sleep(15 * time.Second)
 	}
 }

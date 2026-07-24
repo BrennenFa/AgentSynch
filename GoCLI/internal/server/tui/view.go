@@ -74,15 +74,20 @@ func (m model) View() string {
 
 	// reaper panel
 	b.WriteString("\n" + bold.Render("Reaper:") + "\n")
-	if m.lastReap.IsZero() {
+	if m.reapMsg == "" {
 		b.WriteString("  not run yet\n")
 	} else {
-		b.WriteString(fmt.Sprintf("  last reap: %s ago\n", formatAge(time.Since(m.lastReap))))
+		b.WriteString("  " + m.reapMsg + "\n")
 	}
 
-	b.WriteString("\nj/k: navigate  a: attach to window  q: quit")
-	if m.err != "" {
-		b.WriteString("  " + errStyle.Render("err: "+m.err))
+	if m.confirming && m.cursor < len(m.tasks) {
+		b.WriteString(fmt.Sprintf("\n"+errStyle.Render("delete task-%d \"%s\"? (y/n)"),
+			m.tasks[m.cursor].ID, m.tasks[m.cursor].Title))
+	} else {
+		b.WriteString("\nj/k: navigate  a: attach to window  d: delete  q: quit")
+		if m.err != "" {
+			b.WriteString("  " + errStyle.Render("err: "+m.err))
+		}
 	}
 
 	return b.String()
