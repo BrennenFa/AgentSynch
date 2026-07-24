@@ -27,6 +27,12 @@ func scanTask(row interface {
 	return t, err
 }
 
+// DeleteTask permanently removes a task from the database.
+func DeleteTask(db *sql.DB, id int64) error {
+	_, err := db.Exec(`DELETE FROM tasks WHERE id = ?`, id)
+	return err
+}
+
 func AddTask(db *sql.DB, task objects.Task) (int64, error) {
 	tx, err := db.BeginTx(context.Background(), nil)
 	if err != nil {

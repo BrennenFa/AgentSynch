@@ -73,19 +73,22 @@ func Run(interval time.Duration) {
 			}
 		}
 
-		if err := NewWindow(windowName); err != nil {
+		windowIndex, err := NewWindow(windowName)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not create tmux window %s: %v\n", windowName, err)
 		}
 
-		if worktreeDir != "" {
-			if err := SendKeys(windowName, fmt.Sprintf("cd %s", worktreeDir)); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: could not send cd: %v\n", err)
+		if windowIndex != "" {
+			if worktreeDir != "" {
+				if err := SendKeys(windowIndex, fmt.Sprintf("cd %s", worktreeDir)); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: could not send cd: %v\n", err)
+				}
 			}
-		}
 
-		claudeCmd := fmt.Sprintf(`claude "task-%d: %s — follow CLAUDE.md to complete this task."`, task.ID, task.Title)
-		if err := SendKeys(windowName, claudeCmd); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not send claude command: %v\n", err)
+			claudeCmd := fmt.Sprintf(`claude "task-%d: %s — follow CLAUDE.md to complete this task."`, task.ID, task.Title)
+			if err := SendKeys(windowIndex, claudeCmd); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not send claude command: %v\n", err)
+			}
 		}
 
 		if err := store.SetTmuxWindow(db, task.ID, windowName); err != nil {

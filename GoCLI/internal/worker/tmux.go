@@ -3,6 +3,7 @@ package worker
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 const sessionName = "agentsynch"
@@ -26,13 +27,21 @@ func EnsureSession() error {
 }
 
 // NewWindow creates a new named window in the agentsynch session.
-func NewWindow(name string) error {
-	return exec.Command("tmux", "new-window", "-t", sessionName, "-n", name).Run()
+// If a window with that name already exists, it is killed first.
+// Returns the window index so callers can target it unambiguously.
+func NewWindow(name string) (string, error) {
+	target := fmt.Sprintf("%s:%s", sessionName, name)
+	exec.Command("tmux", "kill-window", "-t", target).Run() // ignore error if it doesn't exist
+	out, err := exec.Command("tmux", "new-window", "-t", sessionName, "-n", name, "-P", "-F", "#{window_index}").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
-// SendKeys sends a command string to a named window and presses Enter.
-func SendKeys(window, cmd string) error {
-	target := fmt.Sprintf("%s:%s", sessionName, window)
+// SendKeys sends a command string to a window (by index) and presses Enter.
+func SendKeys(windowIndex, cmd string) error {
+	target := fmt.Sprintf("%s:%s", sessionName, windowIndex)
 	return exec.Command("tmux", "send-keys", "-t", target, cmd, "Enter").Run()
 }
 

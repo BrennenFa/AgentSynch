@@ -46,7 +46,6 @@ func claimAttempt(db *sql.DB, agentID string, hostname string, pid int) (*object
 	}
 
 	task.SameBranch = sameBranchInt == 1
-
 	claimedAt := time.Now().UTC().Format(time.RFC3339)
 
 	_, err = tx.Exec(

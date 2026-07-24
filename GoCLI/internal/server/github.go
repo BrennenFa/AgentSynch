@@ -45,11 +45,14 @@ func runGithubPass(db *sql.DB) {
 
 		url, err := createPR(task)
 		if err != nil {
-			log.Printf("github worker: error creating PR for task-%d: %v", task.ID, err)
+			log.Printf("github worker: could not create PR for task-%d, archiving anyway: %v", task.ID, err)
+			if err := store.ArchiveTask(db, task.ID); err != nil {
+				log.Printf("github worker: error archiving task-%d: %v", task.ID, err)
+			}
 			continue
 		}
 
-		// archive the task
+		// archive the task with the PR url
 		if err := store.SetDbGit(db, task.ID, url); err != nil {
 			log.Printf("github worker: error archiving task-%d: %v", task.ID, err)
 		}
