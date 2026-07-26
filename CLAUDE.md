@@ -19,7 +19,6 @@ For all CLI commands, see [`commands.md`](./commands.md).
 | Status        | Meaning                                                        |
 |---------------|----------------------------------------------------------------|
 | `available`   | Ready to be claimed                                            |
-| `blocked`     | Waiting on one or more dependency tasks to finish              |
 | `claimed`     | An agent is actively working on it                             |
 | `finished`    | Work is done                                                   |
 | `error`       | Task failed                                                    |

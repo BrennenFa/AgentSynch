@@ -1,4 +1,4 @@
-package commands
+package db
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"agentsynch/internal/store"
+	"agentsynch/internal/worker/commands/system"
 )
 
 func Claim() {
@@ -25,7 +26,6 @@ func Claim() {
 	}
 	defer db.Close()
 
-
 	// claim next available task atomically
 	task, err := store.Claim(db, agentID, hostname, os.Getpid())
 	if err != nil {
@@ -41,7 +41,7 @@ func Claim() {
 	fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
 	fmt.Printf("title: %s \n", task.Title)
 
-	slug := titleSlug(task.Title)
+	slug := system.TitleSlug(task.Title)
 	branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
 
 	// retry with numeric suffix if branch already exists
@@ -51,7 +51,7 @@ func Claim() {
 		if attempt > 1 {
 			candidate = fmt.Sprintf("%s-%d", branchName, attempt)
 		}
-		if err := createWorktree("../AgentSynch-"+candidate, candidate); err == nil {
+		if err := system.CreateWorktree("../worktrees/"+candidate, candidate); err == nil {
 			created = candidate
 			break
 		}
@@ -62,7 +62,7 @@ func Claim() {
 		if err := store.SetBranchName(db, task.ID, created); err != nil {
 			fmt.Printf("warning: could not record branch name: %v\n", err)
 		}
-		fmt.Printf("hint: created branch %s in worktree ../AgentSynch-%s\n", created, created)
+		fmt.Printf("hint: created branch %s in worktree ../worktrees/%s\n", created, created)
 	}
 
 	// heartbeat for reaper...

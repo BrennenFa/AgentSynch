@@ -1,4 +1,4 @@
-package commands
+package db
 
 import (
 	"flag"
@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"agentsynch/internal/store"
+	"agentsynch/internal/worker/commands/system"
 )
 
 func Finish() {
@@ -38,7 +39,7 @@ func Finish() {
 
 	// push branch if one was recorded for this task
 	if hasBranch {
-		if err := pushBranch(*task.BranchName); err != nil {
+		if err := system.PushBranch(*task.BranchName); err != nil {
 			fmt.Printf("warning: could not push branch %s: %v\n", *task.BranchName, err)
 			hasBranch = false
 		} else {
@@ -53,12 +54,12 @@ func Finish() {
 			os.Exit(1)
 		}
 		fmt.Printf("task-%d marked as error\n", *idFlag)
-		// re-fetch task so createIssue sees the true DB state after ErrorTask
+		// re-fetch task so CreateIssue sees the true DB state after ErrorTask
 		task, err = store.GetTask(db, *idFlag)
 		if err != nil || task == nil {
 			fmt.Printf("warning: could not re-fetch task for issue: %v\n", err)
 		} else {
-			if url, err := createIssue(*task); err != nil {
+			if url, err := system.CreateIssue(*task); err != nil {
 				fmt.Printf("warning: could not create GitHub issue: %v\n", err)
 			} else {
 				_ = store.SetDbGit(db, *idFlag, url)
@@ -76,12 +77,12 @@ func Finish() {
 	fmt.Printf("task-%d marked as finished\n", *idFlag)
 
 	if hasBranch {
-		// re-fetch task so createPR sees the true DB state after FinishTask
+		// re-fetch task so CreatePR sees the true DB state after FinishTask
 		task, err = store.GetTask(db, *idFlag)
 		if err != nil || task == nil {
 			fmt.Printf("warning: could not re-fetch task for PR: %v\n", err)
 		} else {
-			if url, err := createPR(*task); err != nil {
+			if url, err := system.CreatePR(*task); err != nil {
 				fmt.Printf("warning: could not create GitHub PR: %v\n", err)
 			} else {
 				_ = store.SetDbGit(db, *idFlag, url)

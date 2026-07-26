@@ -20,7 +20,6 @@ var (
 		"claimed":   lipgloss.NewStyle().Foreground(lipgloss.Color("3")),
 		"finished":  lipgloss.NewStyle().Foreground(lipgloss.Color("4")),
 		"error":     lipgloss.NewStyle().Foreground(lipgloss.Color("1")),
-		"blocked":   lipgloss.NewStyle().Foreground(lipgloss.Color("8")),
 		"archived":  lipgloss.NewStyle().Foreground(lipgloss.Color("8")),
 	}
 )
