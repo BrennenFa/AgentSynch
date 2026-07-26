@@ -4,10 +4,12 @@ misc/
 GoCLI/agentsynch
 
 # Worktrees
-AgentSynch-task-*/
+worktrees/
 
 # Tests
 GoCLI/tests/
 tests/
 
 */agentsynch.db
+
+worktrees/

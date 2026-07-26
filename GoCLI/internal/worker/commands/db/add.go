@@ -1,4 +1,4 @@
-package commands
+package db
 
 import (
 	"bufio"
@@ -50,7 +50,7 @@ func Add() {
 
 	db, err := store.Open()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error saving task: %v\n", err)
 		os.Exit(1)
 	}
 	defer db.Close()

@@ -1,4 +1,4 @@
-package commands
+package system
 
 import (
 	"bytes"
@@ -10,23 +10,19 @@ import (
 	"agentsynch/internal/objects"
 )
 
-// checkoutNewBranch creates and checks out a new git branch.
-func checkoutNewBranch(name string) error {
+func CheckoutNewBranch(name string) error {
 	return exec.Command("git", "checkout", "-b", name).Run()
 }
 
-// createWorktree creates a new branch in a separate working tree directory.
-func createWorktree(path, branch string) error {
+func CreateWorktree(path, branch string) error {
 	return exec.Command("git", "worktree", "add", path, "-b", branch).Run()
 }
 
-// pushBranch pushes a branch to origin, setting upstream tracking.
-func pushBranch(name string) error {
+func PushBranch(name string) error {
 	return exec.Command("git", "push", "-u", "origin", name).Run()
 }
 
-// createPR opens a GitHub PR for a finished task. Returns the PR URL.
-func createPR(task objects.Task) (string, error) {
+func CreatePR(task objects.Task) (string, error) {
 	plan := ""
 	if task.Plan != nil {
 		plan = *task.Plan
@@ -52,8 +48,7 @@ func createPR(task objects.Task) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-// createIssue opens a GitHub Issue for a failed task. Returns the issue URL.
-func createIssue(task objects.Task) (string, error) {
+func CreateIssue(task objects.Task) (string, error) {
 	errMsg := ""
 	if task.Error != nil {
 		errMsg = *task.Error
@@ -73,14 +68,11 @@ func createIssue(task objects.Task) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-var nonAlphanumDash = regexp.MustCompile(`[^a-z0-9-]+`)
-
-// titleSlug converts a task title to a lowercase hyphenated slug for branch names.
-func titleSlug(title string) string {
+// TitleSlug converts a task title to a lowercase hyphenated slug for branch names.
+func TitleSlug(title string) string {
 	s := strings.ToLower(title)
 	s = strings.ReplaceAll(s, " ", "-")
-	s = nonAlphanumDash.ReplaceAllString(s, "")
-	// collapse consecutive hyphens
+	s = regexp.MustCompile(`[^a-z0-9-]+`).ReplaceAllString(s, "")
 	for strings.Contains(s, "--") {
 		s = strings.ReplaceAll(s, "--", "-")
 	}

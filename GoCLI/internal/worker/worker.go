@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"agentsynch/internal/store"
+	"agentsynch/internal/worker/commands/system"
 )
 
 // Run is the main worker loop. Claims tasks and spawns tmux windows for each.
@@ -18,11 +19,11 @@ func Run(interval time.Duration) {
 	}
 	defer db.Close()
 
-	if err := EnsureSession(); err != nil {
+	if err := system.EnsureSession(); err != nil {
 		fmt.Fprintf(os.Stderr, "tmux error: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("tmux session %q ready — polling for tasks every %s\n", sessionName, interval)
+	fmt.Printf("tmux session %q ready — polling for tasks every %s\n", system.SessionName, interval)
 
 	hostname, _ := os.Hostname()
 
@@ -47,7 +48,7 @@ func Run(interval time.Duration) {
 		worktreeDir := ""
 
 		if !task.SameBranch {
-			slug := titleSlug(task.Title)
+			slug := system.TitleSlug(task.Title)
 			branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
 
 			created := ""
@@ -56,8 +57,8 @@ func Run(interval time.Duration) {
 				if attempt > 1 {
 					candidate = fmt.Sprintf("%s-%d", branchName, attempt)
 				}
-				path := "../AgentSynch-" + candidate
-				if err := createWorktree(path, candidate); err == nil {
+				path := "../worktrees/" + candidate
+				if err := system.CreateWorktree(path, candidate); err == nil {
 					created = candidate
 					worktreeDir = path
 					break
@@ -73,20 +74,32 @@ func Run(interval time.Duration) {
 			}
 		}
 
+<<<<<<< HEAD
+		windowIndex, err := system.NewWindow(windowName)
+=======
 		windowIndex, err := NewWindow(windowName)
+>>>>>>> main
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not create tmux window %s: %v\n", windowName, err)
 		}
 
 		if windowIndex != "" {
 			if worktreeDir != "" {
+<<<<<<< HEAD
+				if err := system.SendKeys(windowIndex, fmt.Sprintf("cd %s", worktreeDir)); err != nil {
+=======
 				if err := SendKeys(windowIndex, fmt.Sprintf("cd %s", worktreeDir)); err != nil {
+>>>>>>> main
 					fmt.Fprintf(os.Stderr, "warning: could not send cd: %v\n", err)
 				}
 			}
 
 			claudeCmd := fmt.Sprintf(`claude "task-%d: %s — follow CLAUDE.md to complete this task."`, task.ID, task.Title)
+<<<<<<< HEAD
+			if err := system.SendKeys(windowIndex, claudeCmd); err != nil {
+=======
 			if err := SendKeys(windowIndex, claudeCmd); err != nil {
+>>>>>>> main
 				fmt.Fprintf(os.Stderr, "warning: could not send claude command: %v\n", err)
 			}
 		}

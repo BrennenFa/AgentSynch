@@ -104,9 +104,7 @@ Approving moves the task to `finished` and unblocks any dependents. Rejecting re
 | Status       | Meaning                                                    |
 |--------------|------------------------------------------------------------|
 | `available`  | Ready to be claimed                                        |
-| `blocked`    | Waiting on one or more dependency tasks to finish          |
 | `claimed`    | An agent is actively working on it                         |
-| `validating` | Work submitted; waiting for a validator agent to review    |
-| `finished`   | Work is complete and approved                              |
+| `finished`   | Work is complete                                           |
 | `error`      | Task failed                                                |
 | `archived`   | Done and GH-processed; hidden from normal views (`list`, TUI) |
