@@ -3,9 +3,13 @@ package worker
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"agentsynch/internal/config"
 	"agentsynch/internal/store"
+	"agentsynch/internal/vault"
 	"agentsynch/internal/worker/commands/system"
 )
 
@@ -24,6 +28,8 @@ func Run(interval time.Duration) {
 		os.Exit(1)
 	}
 	fmt.Printf("tmux session %q ready — polling for tasks every %s\n", system.SessionName, interval)
+
+	cfg, _ := config.Load()
 
 	hostname, _ := os.Hostname()
 
@@ -89,7 +95,7 @@ func Run(interval time.Duration) {
 			}
 		}
 
-		claudeCmd := fmt.Sprintf(`claude "task-%d: %s — follow CLAUDE.md to complete this task."`, task.ID, task.Title)
+		claudeCmd := buildClaudePrompt(cfg, task.ID, task.Title)
 		if err := system.SendKeys(windowIndex, claudeCmd); err != nil {
 			fmt.Fprintf(os.Stderr, "error: could not send claude command to window %s: %v\n", windowIndex, err)
 			if err := store.ErrorTask(db, task.ID, fmt.Sprintf("failed to start claude in tmux window: %v", err)); err != nil {
@@ -107,4 +113,34 @@ func Run(interval time.Duration) {
 		fmt.Printf("task-%d running in tmux window %q\n", task.ID, windowName)
 		// no sleep — immediately try to claim the next task
 	}
+}
+
+// buildClaudePrompt constructs the claude command string for a task.
+// If a vault is configured, codebase context and the task note path are injected.
+func buildClaudePrompt(cfg config.Config, taskID int64, title string) string {
+	base := fmt.Sprintf("task-%d: %s — follow CLAUDE.md to complete this task.", taskID, title)
+	if cfg.VaultPath == "" {
+		return fmt.Sprintf(`claude "%s"`, shellEscapeDoubleQuote(base))
+	}
+	repoName := vault.RepoName()
+	codebase, _ := vault.ReadCodebase(cfg.VaultPath, repoName)
+
+	notePath := filepath.Join(cfg.VaultPath, "AgentSynch", repoName, "tasks", fmt.Sprintf("task-%d.md", taskID))
+
+	prompt := base
+	if codebase != "" {
+		prompt += "\n\nCodebase context:\n" + codebase
+	}
+	prompt += "\n\nTask note: " + notePath
+
+	return fmt.Sprintf(`claude "%s"`, shellEscapeDoubleQuote(prompt))
+}
+
+// shellEscapeDoubleQuote escapes a string for safe embedding inside double quotes in a shell command.
+func shellEscapeDoubleQuote(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	s = strings.ReplaceAll(s, `$`, `\$`)
+	s = strings.ReplaceAll(s, "`", "\\`")
+	return s
 }

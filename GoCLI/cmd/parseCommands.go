@@ -17,6 +17,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "commands:")
 		fmt.Fprintln(os.Stderr, "  add          add a new task")
 		fmt.Fprintln(os.Stderr, "  claim        claim the next available task")
+		fmt.Fprintln(os.Stderr, "  config       view or set configuration (e.g. vault path)")
 		fmt.Fprintln(os.Stderr, "  finish       mark a claimed task as finished or error")
 		fmt.Fprintln(os.Stderr, "  plan         write a plan for a claimed task")
 		fmt.Fprintln(os.Stderr, "  set-branch   record the branch created for a claimed task")
@@ -30,6 +31,8 @@ func main() {
 		agentcmds.Add()
 	case "claim":
 		agentcmds.Claim()
+	case "config":
+		agentcmds.Config()
 	case "finish":
 		agentcmds.Finish()
 	case "plan":

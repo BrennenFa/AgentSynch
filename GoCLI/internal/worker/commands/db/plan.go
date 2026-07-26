@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"agentsynch/internal/config"
 	"agentsynch/internal/store"
+	"agentsynch/internal/vault"
 )
 
 func Plan() {
@@ -32,4 +34,26 @@ func Plan() {
 	}
 
 	fmt.Printf("plan written for task-%d\n", *idFlag)
+
+	// write plan to Obsidian vault if configured
+	cfg, err := config.Load()
+	if err != nil || cfg.VaultPath == "" {
+		return
+	}
+	task, err := store.GetTask(db, *idFlag)
+	if err != nil || task == nil {
+		fmt.Fprintf(os.Stderr, "warning: notes: could not fetch task: %v\n", err)
+		return
+	}
+	agentID := ""
+	if task.ClaimedBy != nil {
+		agentID = *task.ClaimedBy
+	}
+	repoName := vault.RepoName()
+	if err := vault.CreateTaskNote(cfg.VaultPath, repoName, *idFlag, task.Title, task.Description, task.Status, agentID); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: vault: could not create task note: %v\n", err)
+	}
+	if err := vault.WritePlan(cfg.VaultPath, repoName, *idFlag, *planFlag); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: vault: could not write plan: %v\n", err)
+	}
 }
