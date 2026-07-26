@@ -8,6 +8,7 @@ To add tasks:
 Ask Claude
 
 
+<<<<<<< HEAD
 Note - Documentation is being updated
 
 TODO
@@ -15,3 +16,6 @@ TODO
 2. MCP integration for various platforms
 3. unit tests
 4. subagents
+=======
+Note - Documentation is being updated
+>>>>>>> main
