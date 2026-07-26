@@ -74,34 +74,28 @@ func Run(interval time.Duration) {
 			}
 		}
 
-<<<<<<< HEAD
 		windowIndex, err := system.NewWindow(windowName)
-=======
-		windowIndex, err := NewWindow(windowName)
->>>>>>> main
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not create tmux window %s: %v\n", windowName, err)
+			fmt.Fprintf(os.Stderr, "error: could not create tmux window %s: %v\n", windowName, err)
+			if err := store.ErrorTask(db, task.ID, fmt.Sprintf("failed to create tmux window: %v", err)); err != nil {
+				fmt.Fprintf(os.Stderr, "error: could not mark task-%d as error: %v\n", task.ID, err)
+			}
+			continue
 		}
 
-		if windowIndex != "" {
-			if worktreeDir != "" {
-<<<<<<< HEAD
-				if err := system.SendKeys(windowIndex, fmt.Sprintf("cd %s", worktreeDir)); err != nil {
-=======
-				if err := SendKeys(windowIndex, fmt.Sprintf("cd %s", worktreeDir)); err != nil {
->>>>>>> main
-					fmt.Fprintf(os.Stderr, "warning: could not send cd: %v\n", err)
-				}
+		if worktreeDir != "" {
+			if err := system.SendKeys(windowIndex, fmt.Sprintf("cd %s", worktreeDir)); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not send cd to window %s: %v\n", windowIndex, err)
 			}
+		}
 
-			claudeCmd := fmt.Sprintf(`claude "task-%d: %s — follow CLAUDE.md to complete this task."`, task.ID, task.Title)
-<<<<<<< HEAD
-			if err := system.SendKeys(windowIndex, claudeCmd); err != nil {
-=======
-			if err := SendKeys(windowIndex, claudeCmd); err != nil {
->>>>>>> main
-				fmt.Fprintf(os.Stderr, "warning: could not send claude command: %v\n", err)
+		claudeCmd := fmt.Sprintf(`claude "task-%d: %s — follow CLAUDE.md to complete this task."`, task.ID, task.Title)
+		if err := system.SendKeys(windowIndex, claudeCmd); err != nil {
+			fmt.Fprintf(os.Stderr, "error: could not send claude command to window %s: %v\n", windowIndex, err)
+			if err := store.ErrorTask(db, task.ID, fmt.Sprintf("failed to start claude in tmux window: %v", err)); err != nil {
+				fmt.Fprintf(os.Stderr, "error: could not mark task-%d as error: %v\n", task.ID, err)
 			}
+			continue
 		}
 
 		if err := store.SetTmuxWindow(db, task.ID, windowName); err != nil {

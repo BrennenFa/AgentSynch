@@ -171,16 +171,6 @@ func killZombieProcess(taskID int64, pid int) {
 	if err := proc.Signal(syscall.SIGKILL); err == nil {
 		fmt.Fprintf(os.Stderr, "[reap] task-%d: sent SIGKILL to pid %d\n", taskID, pid)
 	}
-
-	parts := make([]string, len(results))
-	for i, r := range results {
-		parts[i] = fmt.Sprintf("task-%d \"%s\" → %s", r.TaskID, r.Title, r.NewStatus)
-	}
-	ch <- fmt.Sprintf("[%s] %d tasks reaped - %s",
-		time.Now().Format("2006-01-02 15:04:05"),
-		len(results),
-		strings.Join(parts, ", "),
-	)
 }
 
 // pidBelongsToAgent checks whether the given pid's command line contains the

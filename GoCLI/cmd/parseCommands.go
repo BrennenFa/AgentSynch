@@ -35,13 +35,7 @@ func main() {
 	case "plan":
 		agentcmds.Plan()
 	case "set-branch":
-<<<<<<< HEAD
 		agentcmds.SetBranch()
-=======
-		commands.SetBranch()
-	case "archive":
-		commands.Archive()
->>>>>>> main
 	case "tui":
 		server.TUI()
 	case "worker":

@@ -9,8 +9,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"agentsynch/internal/objects"
+	"agentsynch/internal/server/tui/types"
 	"agentsynch/internal/store"
 )
+
+// --- reaper channel ---
 
 type reapMsgReceived string
 
@@ -19,6 +22,22 @@ func waitForReap(ch chan string) tea.Cmd {
 		return reapMsgReceived(<-ch)
 	}
 }
+
+// --- orchestrator channel ---
+
+type orchEventMsg types.OrchestratorEvent
+
+func waitForOrch(ch <-chan types.OrchestratorEvent) tea.Cmd {
+	return func() tea.Msg {
+		ev, ok := <-ch
+		if !ok {
+			return nil // channel closed after TUI quit
+		}
+		return orchEventMsg(ev)
+	}
+}
+
+// --- tick + task loading ---
 
 type tickMsg time.Time
 
@@ -40,8 +59,10 @@ func loadTasks(db *sql.DB) tea.Cmd {
 	}
 }
 
+// --- BubbleTea interface ---
+
 func (m model) Init() tea.Cmd {
-	return tea.Batch(loadTasks(m.db), tick(), waitForReap(m.reapCh))
+	return tea.Batch(loadTasks(m.db), tick(), waitForReap(m.reapCh), waitForOrch(m.orchOutCh))
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -63,7 +84,52 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case orchEventMsg:
+		if msg.Err != "" {
+			m.chatHistory = append(m.chatHistory, types.ChatEntry{From: "system", Text: "error: " + msg.Err})
+		} else {
+			if msg.Response != "" {
+				m.chatHistory = append(m.chatHistory, types.ChatEntry{From: "claude", Text: msg.Response})
+			}
+			for _, s := range msg.SpawnMsgs {
+				m.chatHistory = append(m.chatHistory, types.ChatEntry{From: "system", Text: s})
+			}
+		}
+		return m, waitForOrch(m.orchOutCh)
+
 	case tea.KeyMsg:
+		// chat mode intercepts all keys except ctrl+c
+		if m.chatMode {
+			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
+			case "esc":
+				m.chatMode = false
+				m.chatInput = ""
+			case "enter":
+				if m.chatInput != "" {
+					m.chatHistory = append(m.chatHistory, types.ChatEntry{From: "you", Text: m.chatInput})
+					select {
+					case m.orchInCh <- m.chatInput:
+					default:
+						m.chatHistory = append(m.chatHistory, types.ChatEntry{From: "system", Text: "[busy, try again]"})
+					}
+					m.chatInput = ""
+				}
+			case "backspace", "ctrl+h":
+				if len(m.chatInput) > 0 {
+					runes := []rune(m.chatInput)
+					m.chatInput = string(runes[:len(runes)-1])
+				}
+			default:
+				if len(msg.Runes) == 1 {
+					m.chatInput += string(msg.Runes)
+				}
+			}
+			return m, nil
+		}
+
+		// delete confirmation mode
 		if m.confirming {
 			switch msg.String() {
 			case "y":
@@ -84,6 +150,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		// normal navigation
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -116,6 +183,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirming = true
 				m.err = ""
 			}
+		case "c":
+			m.chatMode = true
+			m.chatInput = ""
 		}
 		return m, nil
 	}
