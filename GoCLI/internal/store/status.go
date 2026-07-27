@@ -62,3 +62,13 @@ func ArchiveTask(db *sql.DB, id int64) error {
 	)
 	return validateResults(result, err, id, "finished or error")
 }
+
+// ResetTask clears agent ownership and resets a claimed task back to available.
+func ResetTask(db *sql.DB, id int64) error {
+	result, err := db.Exec(
+		`UPDATE tasks SET status = 'available', claimed_by = NULL,
+         claimed_at = NULL, tmux_window = NULL WHERE id = ? AND status = 'claimed'`,
+		id,
+	)
+	return validateResults(result, err, id, "claimed")
+}

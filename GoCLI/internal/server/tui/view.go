@@ -11,9 +11,11 @@ import (
 )
 
 var (
-	bold      = lipgloss.NewStyle().Bold(true)
-	cursorCol = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
-	errStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	bold            = lipgloss.NewStyle().Bold(true)
+	cursorCol       = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	errStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	activeTabStyle  = lipgloss.NewStyle().Bold(true).Underline(true)
+	inactiveTabStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 
 	statusColor = map[string]lipgloss.Style{
 		"available": lipgloss.NewStyle().Foreground(lipgloss.Color("2")),
@@ -25,71 +27,221 @@ var (
 )
 
 func (m model) View() string {
-	var b strings.Builder
+	// default dimensions before first WindowSizeMsg
+	w := m.width
+	h := m.height
+	if w == 0 {
+		w = 160
+	}
+	if h == 0 {
+		h = 40
+	}
 
-	b.WriteString(bold.Render("AgentSynch Dashboard") + "\n\n")
+	leftW := w * 2 / 5
+	rightW := w - leftW - 1 // -1 for the right border of the left pane
+	contentH := h - 4       // header 2 lines + footer 2 lines
 
-	if len(m.tasks) == 0 {
-		b.WriteString("no tasks\n")
-	} else {
-		b.WriteString(bold.Render(fmt.Sprintf(
-			"  %-4s  %-28s  %-11s  %-18s  %-8s  %-6s  %-10s",
-			"ID", "Title", "Status", "Agent", "Heartbeat", "Tries", "Window",
-		)) + "\n")
-		b.WriteString("  " + strings.Repeat("─", 95) + "\n")
+	// ── left pane ────────────────────────────────────────────────────────────
+	var leftB strings.Builder
+
+	if m.activeTab == 0 {
+		// tasks tab: ID(4)  Status(11)  Title(remaining)
+		titleW := leftW - 4 - 11 - 4 // subtract ID, status, spacing
+		if titleW < 8 {
+			titleW = 8
+		}
+
+		leftB.WriteString(bold.Render(fmt.Sprintf("%-4s  %-11s  %s", "ID", "Status", "Title")) + "\n")
+		leftB.WriteString(strings.Repeat("─", leftW) + "\n")
 
 		for i, t := range m.tasks {
 			cursor := "  "
 			if i == m.cursor {
 				cursor = cursorCol.Render("> ")
 			}
-
-			line := fmt.Sprintf("%s%-4d  %-28s  %s  %-18s  %-8s  %-6d  %-10s",
+			line := fmt.Sprintf("%s%-4d  %s  %s",
 				cursor,
 				t.ID,
-				trunc(t.Title, 28),
 				colorStatus(t.Status),
-				trunc(deref(t.ClaimedBy, "-"), 18),
-				heartbeatStr(t.HeartbeatAt),
-				t.Attempts,
-				trunc(deref(t.TmuxWindow, "-"), 10),
+				trunc(t.Title, titleW),
 			)
-			b.WriteString(line + "\n")
+			leftB.WriteString(line + "\n")
 		}
-	}
-
-	// active agents panel
-	claimed := byStatus(m.tasks, "claimed")
-	if len(claimed) > 0 {
-		b.WriteString("\n" + bold.Render("Active agents:") + "\n")
-		for _, t := range claimed {
-			b.WriteString(fmt.Sprintf("  task-%d: %s  agent=%s  window=%s\n",
-				t.ID, t.Title,
-				deref(t.ClaimedBy, "?"),
-				deref(t.TmuxWindow, "none"),
-			))
-		}
-	}
-
-	// reaper panel
-	b.WriteString("\n" + bold.Render("Reaper:") + "\n")
-	if m.reapMsg == "" {
-		b.WriteString("  not run yet\n")
 	} else {
-		b.WriteString("  " + m.reapMsg + "\n")
+		// agents tab: Agent(20)  Task(remaining)  Beat(8)
+		agents := byStatus(m.tasks, "claimed")
+		agentColW := 20
+		beatColW := 8
+		taskColW := leftW - agentColW - beatColW - 4 - 2 // 4 spacing, 2 cursor
+		if taskColW < 8 {
+			taskColW = 8
+		}
+
+		leftB.WriteString(bold.Render(fmt.Sprintf("  %-20s  %-*s  %-8s", "Agent", taskColW, "Task", "Beat")) + "\n")
+		leftB.WriteString(strings.Repeat("─", leftW) + "\n")
+
+		for i, t := range agents {
+			cursor := "  "
+			if i == m.agentCursor {
+				cursor = cursorCol.Render("> ")
+			}
+			line := fmt.Sprintf("%s%-20s  %-*s  %s",
+				cursor,
+				trunc(deref(t.ClaimedBy, "?"), agentColW),
+				taskColW,
+				trunc(t.Title, taskColW),
+				heartbeatStr(t.HeartbeatAt),
+			)
+			leftB.WriteString(line + "\n")
+		}
 	}
 
+	leftPane := lipgloss.NewStyle().
+		Width(leftW).
+		Height(contentH).
+		Border(lipgloss.NormalBorder(), false, true, false, false).
+		BorderForeground(lipgloss.Color("8")).
+		Render(leftB.String())
+
+	// ── right pane ───────────────────────────────────────────────────────────
+	var rightB strings.Builder
+
+	if m.activeTab == 0 {
+		// tasks tab right pane — unchanged
+		if len(m.tasks) == 0 {
+			rightB.WriteString("no tasks")
+		} else if m.cursor < len(m.tasks) {
+			t := m.tasks[m.cursor]
+
+			rightB.WriteString(bold.Render(fmt.Sprintf("task-%d: %s", t.ID, t.Title)) + "\n")
+			rightB.WriteString(strings.Repeat("─", rightW-2) + "\n")
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "agent:", deref(t.ClaimedBy, "-")))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "window:", deref(t.TmuxWindow, "-")))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "beat:", heartbeatStr(t.HeartbeatAt)))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "status:", colorStatus(t.Status)))
+			rightB.WriteString("\n")
+
+			rightB.WriteString("── terminal " + strings.Repeat("─", rightW-14) + "\n")
+
+			// previewH = contentH - (title + sep + 4 fields + blank + terminal header)
+			previewH := contentH - 8
+			if previewH < 1 {
+				previewH = 1
+			}
+
+			if t.TmuxWindow == nil {
+				rightB.WriteString("(no active session)")
+			} else if m.preview == "" {
+				rightB.WriteString("loading...")
+			} else {
+				lines := strings.Split(m.preview, "\n")
+				// take last previewH lines
+				if len(lines) > previewH {
+					lines = lines[len(lines)-previewH:]
+				}
+				for _, l := range lines {
+					if len(l) > rightW-1 {
+						l = l[:rightW-1]
+					}
+					rightB.WriteString(l + "\n")
+				}
+			}
+		}
+	} else {
+		// agents tab right pane
+		agents := byStatus(m.tasks, "claimed")
+		if len(agents) == 0 {
+			rightB.WriteString("no active agents")
+		} else if m.agentCursor < len(agents) {
+			t := agents[m.agentCursor]
+			agentName := deref(t.ClaimedBy, "?")
+
+			rightB.WriteString(bold.Render(agentName) + "\n")
+			rightB.WriteString(strings.Repeat("─", rightW-2) + "\n")
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "task:", t.Title))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "window:", deref(t.TmuxWindow, "-")))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "beat:", heartbeatStr(t.HeartbeatAt)))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "status:", colorStatus(t.Status)))
+			rightB.WriteString("\n")
+
+			rightB.WriteString("── terminal " + strings.Repeat("─", rightW-14) + "\n")
+
+			previewH := contentH - 8
+			if previewH < 1 {
+				previewH = 1
+			}
+
+			if t.TmuxWindow == nil {
+				rightB.WriteString("(no active session)")
+			} else if m.preview == "" {
+				rightB.WriteString("loading...")
+			} else {
+				lines := strings.Split(m.preview, "\n")
+				if len(lines) > previewH {
+					lines = lines[len(lines)-previewH:]
+				}
+				for _, l := range lines {
+					if len(l) > rightW-1 {
+						l = l[:rightW-1]
+					}
+					rightB.WriteString(l + "\n")
+				}
+			}
+		}
+	}
+
+	rightPane := lipgloss.NewStyle().
+		Width(rightW).
+		Height(contentH).
+		PaddingLeft(1).
+		Render(rightB.String())
+
+	// ── assemble ─────────────────────────────────────────────────────────────
+	var out strings.Builder
+
+	// header with tab labels
+	tasksLabel := "[Tasks]"
+	agentsLabel := "[Agents]"
+	if m.activeTab == 0 {
+		tasksLabel = activeTabStyle.Render(tasksLabel)
+		agentsLabel = inactiveTabStyle.Render(agentsLabel)
+	} else {
+		tasksLabel = inactiveTabStyle.Render(tasksLabel)
+		agentsLabel = activeTabStyle.Render(agentsLabel)
+	}
+	out.WriteString("AgentSynch  " + tasksLabel + "  " + agentsLabel + "\n\n")
+
+	out.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane))
+	out.WriteString("\n")
+
+	// footer
 	if m.confirming && m.cursor < len(m.tasks) {
-		b.WriteString(fmt.Sprintf("\n"+errStyle.Render("delete task-%d \"%s\"? (y/n)"),
-			m.tasks[m.cursor].ID, m.tasks[m.cursor].Title))
-	} else {
-		b.WriteString("\nj/k: navigate  a: attach to window  d: delete  q: quit")
-		if m.err != "" {
-			b.WriteString("  " + errStyle.Render("err: "+m.err))
+		out.WriteString(errStyle.Render(fmt.Sprintf("delete task-%d \"%s\"? (y/n)",
+			m.tasks[m.cursor].ID, m.tasks[m.cursor].Title)))
+	} else if m.confirmingKill {
+		agents := byStatus(m.tasks, "claimed")
+		if m.agentCursor < len(agents) {
+			agentName := deref(agents[m.agentCursor].ClaimedBy, "?")
+			out.WriteString(errStyle.Render(fmt.Sprintf("kill agent \"%s\" and reset task? (y/n)", agentName)))
 		}
+	} else {
+		var footer string
+		reapInfo := ""
+		if m.reapMsg != "" {
+			reapInfo = "  reaper: " + m.reapMsg
+		}
+		if m.activeTab == 0 {
+			footer = "tab: switch  j/k: navigate  o: open tmux  a: select window  d: delete  q: quit" + reapInfo
+		} else {
+			footer = "tab: switch  j/k: navigate  n: spawn agent  o: open tmux  a: select window  x: kill  q: quit" + reapInfo
+		}
+		if m.err != "" {
+			footer += "  " + errStyle.Render("err: "+m.err)
+		}
+		out.WriteString(footer)
 	}
 
-	return b.String()
+	return out.String()
 }
 
 func colorStatus(s string) string {
