@@ -51,6 +51,32 @@ func CreateTaskNote(vaultPath, repoName string, taskID int64, title, description
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
+// ReadPlan returns the content of the ## Plan section in the task note.
+// Returns empty string if the vault note or section does not exist.
+func ReadPlan(vaultPath, repoName string, taskID int64) string {
+	path := taskNotePath(vaultPath, repoName, taskID)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	content := string(data)
+
+	planHeader := "## Plan\n"
+	sep := "\n---\n"
+
+	start := strings.Index(content, planHeader)
+	if start == -1 {
+		return ""
+	}
+	planStart := start + len(planHeader)
+
+	sepIdx := strings.Index(content[planStart:], sep)
+	if sepIdx == -1 {
+		return strings.TrimSpace(content[planStart:])
+	}
+	return strings.TrimSpace(content[planStart : planStart+sepIdx])
+}
+
 // WritePlan replaces the ## Plan section content in the task note.
 func WritePlan(vaultPath, repoName string, taskID int64, plan string) error {
 	path := taskNotePath(vaultPath, repoName, taskID)

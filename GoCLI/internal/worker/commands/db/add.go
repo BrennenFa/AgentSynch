@@ -8,8 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"agentsynch/internal/config"
 	"agentsynch/internal/objects"
 	"agentsynch/internal/store"
+	"agentsynch/internal/vault"
 )
 
 func Add() {
@@ -42,12 +44,6 @@ func Add() {
 		planInput = strings.TrimSpace(planInput)
 	}
 
-	// empty plan input = no plan
-	var plan *string
-	if planInput != "" {
-		plan = &planInput
-	}
-
 	db, err := store.Open()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error saving task: %v\n", err)
@@ -59,7 +55,6 @@ func Add() {
 		Title:       title,
 		Description: description,
 		Status:      "available",
-		Plan:        plan,
 		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -70,4 +65,21 @@ func Add() {
 	}
 
 	fmt.Printf("added task-%d: %s\n", id, task.Title)
+
+	// if a plan was provided, write it to the vault (vault is source of truth for plans)
+	if planInput != "" {
+		cfg, err := config.Load()
+		if err != nil || cfg.VaultPath == "" {
+			fmt.Fprintln(os.Stderr, "warning: vault not configured — plan not saved")
+			return
+		}
+		repoName := vault.RepoName()
+		if err := vault.CreateTaskNote(cfg.VaultPath, repoName, id, title, description, "available", ""); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: vault: could not create task note: %v\n", err)
+			return
+		}
+		if err := vault.WritePlan(cfg.VaultPath, repoName, id, planInput); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: vault: could not write plan: %v\n", err)
+		}
+	}
 }
