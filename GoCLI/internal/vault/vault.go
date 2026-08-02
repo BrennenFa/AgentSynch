@@ -64,17 +64,21 @@ func ReadPlan(vaultPath, repoName string, taskID int64) string {
 	planHeader := "## Plan\n"
 	sep := "\n---\n"
 
-	start := strings.Index(content, planHeader)
-	if start == -1 {
+
+	// find start location
+	headerIndex := strings.Index(content, planHeader)
+	if headerIndex == -1 {
 		return ""
 	}
-	planStart := start + len(planHeader)
+	startIndex := headerIndex + len(planHeader)
 
-	sepIdx := strings.Index(content[planStart:], sep)
+	sepIdx := strings.Index(content[startIndex:], sep)
+
+	// find the text lines needed
 	if sepIdx == -1 {
-		return strings.TrimSpace(content[planStart:])
+		return strings.TrimSpace(content[startIndex:])
 	}
-	return strings.TrimSpace(content[planStart : planStart+sepIdx])
+	return strings.TrimSpace(content[startIndex : startIndex+sepIdx])
 }
 
 // WritePlan replaces the ## Plan section content in the task note.
@@ -89,19 +93,19 @@ func WritePlan(vaultPath, repoName string, taskID int64, plan string) error {
 	planHeader := "## Plan\n"
 	sep := "\n---\n"
 
-	start := strings.Index(content, planHeader)
-	if start == -1 {
+	headerIndex := strings.Index(content, planHeader)
+	if headerIndex == -1 {
 		return fmt.Errorf("## Plan section not found in %s", path)
 	}
-	planStart := start + len(planHeader)
+	startIndex := headerIndex + len(planHeader)
 
-	sepIdx := strings.Index(content[planStart:], sep)
+	sepIdx := strings.Index(content[startIndex:], sep)
 	if sepIdx == -1 {
 		return fmt.Errorf("--- separator not found in %s", path)
 	}
-	planEnd := planStart + sepIdx
+	planEnd := startIndex + sepIdx
 
-	newContent := content[:planStart] + plan + "\n" + content[planEnd:]
+	newContent := content[:startIndex] + plan + "\n" + content[planEnd:]
 	return os.WriteFile(path, []byte(newContent), 0644)
 }
 
