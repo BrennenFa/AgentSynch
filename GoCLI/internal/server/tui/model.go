@@ -20,4 +20,9 @@ type model struct {
 	preview        string // last tmux capture-pane output
 	width          int    // terminal width from WindowSizeMsg
 	height         int    // terminal height from WindowSizeMsg
+	// add task form
+	addingTask bool   // add-task form is open
+	formField  int    // 0 = title, 1 = description
+	titleInput string // title field value
+	descInput  string // description field value
 }
