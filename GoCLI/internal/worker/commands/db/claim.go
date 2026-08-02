@@ -43,7 +43,9 @@ func Claim() {
 	fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
 	fmt.Printf("title: %s \n", task.Title)
 
-	if cfg, err := config.Load(); err == nil && cfg.VaultPath != "" {
+	cfg, cfgErr := config.Load()
+
+	if cfgErr == nil && cfg.VaultPath != "" {
 		repoName := vault.RepoName()
 		_ = vault.CreateTaskNote(cfg.VaultPath, repoName, task.ID, task.Title, task.Description, task.Status, agentID)
 	}
@@ -70,6 +72,30 @@ func Claim() {
 			fmt.Printf("warning: could not record branch name: %v\n", err)
 		}
 		fmt.Printf("hint: created branch %s in worktree ../worktrees/%s\n", created, created)
+	}
+
+	if cfgErr == nil && cfg.VaultPath != "" {
+		repoName := vault.RepoName()
+		claimedAt := ""
+		if task.ClaimedAt != nil {
+			claimedAt = *task.ClaimedAt
+		}
+		claimedBy := ""
+		if task.ClaimedBy != nil {
+			claimedBy = *task.ClaimedBy
+		}
+		fields := map[string]string{
+			"task_id":    fmt.Sprintf("%d", task.ID),
+			"repo":       repoName,
+			"status":     "claimed",
+			"created":    task.CreatedAt,
+			"claimed_by": claimedBy,
+			"claimed_at": claimedAt,
+			"branch":     created,
+		}
+		if err := vault.UpdateFrontmatter(cfg.VaultPath, repoName, task.ID, fields); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: vault: could not update frontmatter: %v\n", err)
+		}
 	}
 
 	// heartbeat for reaper...
