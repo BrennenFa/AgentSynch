@@ -93,13 +93,23 @@ func UpdateFrontmatter(vaultPath, repoName string, taskID int64, fields map[stri
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
-// RepoName returns the base name of the git repository root.
+// RepoName returns the base name of the main git repository (not a linked worktree).
+// Uses --git-common-dir so it resolves correctly when run from inside a worktree,
+// where --show-toplevel would return the worktree's own directory instead.
 func RepoName() string {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	out, err := exec.Command("git", "rev-parse", "--git-common-dir").Output()
 	if err != nil {
 		return "unknown"
 	}
-	return filepath.Base(strings.TrimSpace(string(out)))
+	gitDir := strings.TrimSpace(string(out))
+	if !filepath.IsAbs(gitDir) {
+		abs, err := filepath.Abs(gitDir)
+		if err != nil {
+			return "unknown"
+		}
+		gitDir = abs
+	}
+	return filepath.Base(filepath.Dir(gitDir))
 }
 
 // ReadCodebase reads <vault>/AgentSynch/<repo>/codebase.md.
