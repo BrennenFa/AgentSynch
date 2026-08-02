@@ -9,6 +9,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"agentsynch/internal/config"
+	"agentsynch/internal/vault"
 )
 
 // reapResult describes what happened to a single reaped task.
@@ -136,6 +139,27 @@ func reapZombies(db *sql.DB, timeout time.Duration) ([]reapResult, error) {
 		}
 		results = append(results, reapResult{TaskID: z.taskID, Title: z.title, NewStatus: status})
 	}
+
+	// update vault frontmatter for each reaped task (warnings only — never blocks reaping)
+	cfg, cfgErr := config.Load()
+	if cfgErr == nil && cfg.VaultPath != "" {
+		repoName := vault.RepoName()
+		now := time.Now().UTC().Format(time.RFC3339)
+		for _, r := range results {
+			fields := map[string]string{
+				"status":     r.NewStatus,
+				"claimed_by": "",
+				"claimed_at": "",
+			}
+			if r.NewStatus == "error" {
+				fields["finished_at"] = now
+			}
+			if err := vault.UpdateFrontmatter(cfg.VaultPath, repoName, r.TaskID, fields); err != nil {
+				fmt.Fprintf(os.Stderr, "[reap] warning: vault: could not update frontmatter for task-%d: %v\n", r.TaskID, err)
+			}
+		}
+	}
+
 	return results, nil
 }
 

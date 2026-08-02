@@ -119,4 +119,12 @@ func appendToNotes(db *sql.DB, taskID int64, output, status string) {
 	if err := vault.AppendFindings(cfg.VaultPath, repoName, taskID, output, status); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: vault: could not append findings: %v\n", err)
 	}
+	// ensure branch is recorded in frontmatter (may not have been set at claim time)
+	branch := ""
+	if task.BranchName != nil {
+		branch = *task.BranchName
+	}
+	if err := vault.UpdateFrontmatter(cfg.VaultPath, repoName, taskID, map[string]string{"branch": branch}); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: vault: could not update frontmatter branch: %v\n", err)
+	}
 }
