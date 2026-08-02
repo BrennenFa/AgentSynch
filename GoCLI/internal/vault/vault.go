@@ -47,7 +47,7 @@ func CreateTaskNote(vaultPath, repoName string, taskID int64, title, description
 		return err
 	}
 	started := time.Now().Format("2006-01-02 15:04")
-	content := fmt.Sprintf("# task-%d: %s\n\n**Status:** %s\n**Agent:** %s\n**Started:** %s\n\n## Description\n%s\n\n## Plan\n(written when `plan` command runs)\n\n---\n\n## Findings\n", taskID, title, status, agentID, started, description)
+	content := fmt.Sprintf("# task-%d: %s\n\n**Status:** %s\n**Agent:** %s\n**Started:** %s\n\n## Description\n%s\n\n## Plan\n\n---\n\n## Findings\n", taskID, title, status, agentID, started, description)
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
@@ -79,34 +79,6 @@ func ReadPlan(vaultPath, repoName string, taskID int64) string {
 		return strings.TrimSpace(content[startIndex:])
 	}
 	return strings.TrimSpace(content[startIndex : startIndex+sepIdx])
-}
-
-// WritePlan replaces the ## Plan section content in the task note.
-func WritePlan(vaultPath, repoName string, taskID int64, plan string) error {
-	path := taskNotePath(vaultPath, repoName, taskID)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	content := string(data)
-
-	planHeader := "## Plan\n"
-	sep := "\n---\n"
-
-	headerIndex := strings.Index(content, planHeader)
-	if headerIndex == -1 {
-		return fmt.Errorf("## Plan section not found in %s", path)
-	}
-	startIndex := headerIndex + len(planHeader)
-
-	sepIdx := strings.Index(content[startIndex:], sep)
-	if sepIdx == -1 {
-		return fmt.Errorf("--- separator not found in %s", path)
-	}
-	planEnd := startIndex + sepIdx
-
-	newContent := content[:startIndex] + plan + "\n" + content[planEnd:]
-	return os.WriteFile(path, []byte(newContent), 0644)
 }
 
 // AppendFindings updates the status line and appends findings under ## Findings.
