@@ -1,0 +1,29 @@
+version: 2
+
+builds:
+  - id: agentsynch
+    dir: GoCLI
+    main: ./cmd
+    binary: agentsynch
+    goos: [darwin]
+    goarch: [amd64, arm64]
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: agentsynch
+    formats: [tar.gz]
+
+checksum:
+  name_template: checksums.txt
+
+brews:
+  - name: agentsynch
+    directory: Formula
+    repository:
+      owner: BrennenFa
+      name: AgentSynch
+    homepage: https://github.com/BrennenFa/AgentSynch
+    description: Local multi-agent task orchestrator for Claude
+    install: |
+      bin.install "agentsynch"
