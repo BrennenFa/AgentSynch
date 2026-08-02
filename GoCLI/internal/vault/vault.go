@@ -147,32 +147,34 @@ func CreateTaskNote(vaultPath, repoName string, taskID int64, title, description
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
-// WritePlan replaces the ## Plan section content in the task note.
-func WritePlan(vaultPath, repoName string, taskID int64, plan string) error {
+// ReadPlan returns the content of the ## Plan section in the task note.
+// Returns empty string if the vault note or section does not exist.
+func ReadPlan(vaultPath, repoName string, taskID int64) string {
 	path := taskNotePath(vaultPath, repoName, taskID)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return ""
 	}
 	content := string(data)
 
 	planHeader := "## Plan\n"
 	sep := "\n---\n"
 
-	start := strings.Index(content, planHeader)
-	if start == -1 {
-		return fmt.Errorf("## Plan section not found in %s", path)
-	}
-	planStart := start + len(planHeader)
 
-	sepIdx := strings.Index(content[planStart:], sep)
+	// find start location
+	headerIndex := strings.Index(content, planHeader)
+	if headerIndex == -1 {
+		return ""
+	}
+	startIndex := headerIndex + len(planHeader)
+
+	sepIdx := strings.Index(content[startIndex:], sep)
+
+	// find the text lines needed
 	if sepIdx == -1 {
-		return fmt.Errorf("--- separator not found in %s", path)
+		return strings.TrimSpace(content[startIndex:])
 	}
-	planEnd := planStart + sepIdx
-
-	newContent := content[:planStart] + plan + "\n" + content[planEnd:]
-	return os.WriteFile(path, []byte(newContent), 0644)
+	return strings.TrimSpace(content[startIndex : startIndex+sepIdx])
 }
 
 // AppendFindings updates frontmatter status/finished_at and appends findings under ## Findings.

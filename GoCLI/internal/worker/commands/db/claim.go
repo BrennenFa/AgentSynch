@@ -6,7 +6,9 @@ import (
 	"os/exec"
 	"syscall"
 
+	"agentsynch/internal/config"
 	"agentsynch/internal/store"
+	"agentsynch/internal/vault"
 	"agentsynch/internal/worker/commands/system"
 )
 
@@ -40,6 +42,11 @@ func Claim() {
 
 	fmt.Printf("claimed task-%d: %s (agent: %s)\n", task.ID, task.Title, agentID)
 	fmt.Printf("title: %s \n", task.Title)
+
+	if cfg, err := config.Load(); err == nil && cfg.VaultPath != "" {
+		repoName := vault.RepoName()
+		_ = vault.CreateTaskNote(cfg.VaultPath, repoName, task.ID, task.Title, task.Description, task.Status, agentID)
+	}
 
 	slug := system.TitleSlug(task.Title)
 	branchName := fmt.Sprintf("task-%d/%s", task.ID, slug)
