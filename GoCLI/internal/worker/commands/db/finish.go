@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 
 	"agentsynch/internal/config"
 	"agentsynch/internal/store"
@@ -39,6 +40,11 @@ func Finish() {
 	}
 
 	hasBranch := task != nil && task.BranchName != nil && *task.BranchName != ""
+
+	// auto-commit any uncommitted work before pushing
+	if hasBranch && task != nil {
+		autoCommit(task.ID, task.Title)
+	}
 
 	// push branch if one was recorded for this task
 	if hasBranch {
@@ -94,6 +100,23 @@ func Finish() {
 				fmt.Printf("pr: %s\n", url)
 			}
 		}
+	}
+}
+
+// autoCommit stages all changes and commits them. If there is nothing to commit, it is a no-op.
+// Errors are warnings only — never blocks finish.
+func autoCommit(taskID int64, title string) {
+	if err := exec.Command("git", "add", "-A").Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: auto-commit: git add failed: %v\n", err)
+		return
+	}
+	msg := fmt.Sprintf("task-%d: %s", taskID, title)
+	out, err := exec.Command("git", "commit", "-m", msg).CombinedOutput()
+	if err != nil {
+		// "nothing to commit" is not a real error — git exits 1 in that case
+		fmt.Printf("auto-commit: %s\n", string(out))
+	} else {
+		fmt.Printf("auto-committed: %s\n", msg)
 	}
 }
 

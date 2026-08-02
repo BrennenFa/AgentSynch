@@ -41,6 +41,11 @@ func SpawnAgent(db *sql.DB) error {
 
 	fmt.Printf("claimed task-%d: %s\n", task.ID, task.Title)
 
+	if cfg.VaultPath != "" {
+		repoName := vault.RepoName()
+		_ = vault.CreateTaskNote(cfg.VaultPath, repoName, task.ID, task.Title, task.Description, task.Status, agentID)
+	}
+
 	windowName := fmt.Sprintf("task-%d", task.ID)
 	worktreeDir := ""
 

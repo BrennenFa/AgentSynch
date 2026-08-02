@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS tasks (
     finished_at  TEXT,
     output       TEXT,
     error        TEXT,
-    plan         TEXT,
     heartbeat_at TEXT,
     attempts     INTEGER NOT NULL DEFAULT 0
 );

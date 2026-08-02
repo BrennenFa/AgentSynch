@@ -19,7 +19,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  claim        claim the next available task")
 		fmt.Fprintln(os.Stderr, "  config       view or set configuration (e.g. vault path)")
 		fmt.Fprintln(os.Stderr, "  finish       mark a claimed task as finished or error")
-		fmt.Fprintln(os.Stderr, "  plan         write a plan for a claimed task")
 		fmt.Fprintln(os.Stderr, "  set-branch   record the branch created for a claimed task")
 		fmt.Fprintln(os.Stderr, "  tui          open the live dashboard (runs reaper + github worker)")
 		fmt.Fprintln(os.Stderr, "  worker       poll for tasks and run them in tmux windows")
@@ -35,8 +34,6 @@ func main() {
 		agentcmds.Config()
 	case "finish":
 		agentcmds.Finish()
-	case "plan":
-		agentcmds.Plan()
 	case "set-branch":
 		agentcmds.SetBranch()
 	case "tui":

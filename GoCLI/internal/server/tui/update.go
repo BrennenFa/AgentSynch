@@ -35,6 +35,22 @@ type previewLoadedMsg string
 
 type spawnResultMsg struct{ err error }
 
+type taskAddedMsg struct{ err error }
+
+func addTaskCmd(db *sql.DB, title, desc string) tea.Cmd {
+	return func() tea.Msg {
+		now := time.Now().UTC().Format(time.RFC3339)
+		task := objects.Task{
+			Title:       title,
+			Description: desc,
+			Status:      "available",
+			CreatedAt:   now,
+		}
+		_, err := store.AddTask(db, task)
+		return taskAddedMsg{err: err}
+	}
+}
+
 func spawnAgentCmd(db *sql.DB) tea.Cmd {
 	return func() tea.Msg {
 		return spawnResultMsg{err: worker.SpawnAgent(db)}
@@ -125,7 +141,62 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, loadTasks(m.db)
 
+	case taskAddedMsg:
+		if msg.err != nil {
+			m.err = "add failed: " + msg.err.Error()
+		} else {
+			m.err = ""
+		}
+		return m, loadTasks(m.db)
+
 	case tea.KeyMsg:
+		// ── add-task form ─────────────────────────────────────────────────────
+		if m.addingTask {
+			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
+			case "esc":
+				m.addingTask = false
+				m.titleInput = ""
+				m.descInput = ""
+				m.formField = 0
+				m.err = ""
+			case "tab":
+				m.formField = (m.formField + 1) % 2
+			case "enter":
+				title := strings.TrimSpace(m.titleInput)
+				if title == "" {
+					m.err = "title is required"
+				} else {
+					m.addingTask = false
+					m.err = ""
+					return m, addTaskCmd(m.db, title, m.descInput)
+				}
+			case "backspace":
+				if m.formField == 0 {
+					runes := []rune(m.titleInput)
+					if len(runes) > 0 {
+						m.titleInput = string(runes[:len(runes)-1])
+					}
+				} else {
+					runes := []rune(m.descInput)
+					if len(runes) > 0 {
+						m.descInput = string(runes[:len(runes)-1])
+					}
+				}
+			default:
+				s := msg.String()
+				if msg.Type == tea.KeyRunes || s == " " {
+					if m.formField == 0 {
+						m.titleInput += s
+					} else {
+						m.descInput += s
+					}
+				}
+			}
+			return m, nil
+		}
+
 		// ── kill-agent confirmation ───────────────────────────────────────────
 		if m.confirmingKill {
 			agents := byStatus(m.tasks, "claimed")
@@ -267,6 +338,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.err = ""
 				}
 			}
+
+		case "c":
+			// add task — tasks tab only
+			if m.activeTab != 0 {
+				return m, nil
+			}
+			m.addingTask = true
+			m.titleInput = ""
+			m.descInput = ""
+			m.formField = 0
+			m.err = ""
 
 		case "d":
 			// delete — tasks tab only
