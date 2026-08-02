@@ -10,7 +10,6 @@ type Task struct {
 	Title        string   `json:"title"`
 	Description  string   `json:"description"`
 	Status       string   `json:"status"`
-	Plan         *string  `json:"plan"`
 	ClaimedBy    *string  `json:"claimed_by"`
 	ClaimedAt    *string  `json:"claimed_at"`
 	CreatedAt    string   `json:"created_at"`

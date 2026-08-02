@@ -19,7 +19,7 @@ func SetDbGit(db *sql.DB, id int64, url string) error {
 // ListFinishedForGH returns finished tasks that have not yet had a GH action created.
 func ListFinishedForGH(db *sql.DB) ([]objects.Task, error) {
 	rows, err := db.Query(
-		`SELECT id, title, description, plan, output, branch_name FROM tasks WHERE status = 'finished' AND gh_url IS NULL ORDER BY id`,
+		`SELECT id, title, description, output, branch_name FROM tasks WHERE status = 'finished' AND gh_url IS NULL ORDER BY id`,
 	)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func ListFinishedForGH(db *sql.DB) ([]objects.Task, error) {
 		var t objects.Task
 
 		// scan the row into a Task struct; handle nullable fields with pointers
-		err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Plan, &t.Output, &t.BranchName)
+		err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Output, &t.BranchName)
 		if err != nil {
 			return nil, err
 		}

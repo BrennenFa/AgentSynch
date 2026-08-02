@@ -25,17 +25,6 @@ func ErrorTask(db *sql.DB, id int64, errMsg string) error {
 	return validateResults(result, err, id, "claimed")
 }
 
-func WritePlan(db *sql.DB, id int64, plan string) error {
-
-	// add in a plan for how the task will be completed
-
-	result, err := db.Exec(
-		`UPDATE tasks SET plan = ? WHERE id = ? AND status = 'claimed'`,
-		plan, id,
-	)
-	return validateResults(result, err, id, "claimed")
-}
-
 // SetBranchName records the branch an agent created. Only valid on claimed tasks.
 func SetBranchName(db *sql.DB, id int64, branchName string) error {
 	result, err := db.Exec(
