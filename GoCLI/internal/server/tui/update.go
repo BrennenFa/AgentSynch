@@ -3,7 +3,9 @@ package tui
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -284,6 +286,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			agents := byStatus(m.tasks, "claimed")
 			if m.agentCursor < len(agents) {
 				m.confirmingKill = true
+				m.err = ""
+			}
+
+		case "p":
+			// open task note in Obsidian — tasks tab only
+			if m.activeTab != 0 {
+				return m, nil
+			}
+			if m.vaultPath == "" {
+				m.err = "no vault configured"
+				return m, nil
+			}
+			if m.cursor >= len(m.tasks) {
+				return m, nil
+			}
+			task := m.tasks[m.cursor]
+			vaultName := filepath.Base(m.vaultPath)
+			relFile := filepath.Join("AgentSynch", m.repoName, "tasks", fmt.Sprintf("task-%d.md", task.ID))
+			obsidianURL := fmt.Sprintf("obsidian://open?vault=%s&file=%s", url.QueryEscape(vaultName), url.QueryEscape(relFile))
+			if err := exec.Command("open", obsidianURL).Run(); err != nil {
+				m.err = err.Error()
+			} else {
 				m.err = ""
 			}
 		}

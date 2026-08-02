@@ -231,7 +231,7 @@ func (m model) View() string {
 			reapInfo = "  reaper: " + m.reapMsg
 		}
 		if m.activeTab == 0 {
-			footer = "tab: switch  j/k: navigate  o: open tmux  a: select window  d: delete  q: quit" + reapInfo
+			footer = "tab: switch  j/k: navigate  o: open tmux  a: select window  p: open in obsidian  d: delete  q: quit" + reapInfo
 		} else {
 			footer = "tab: switch  j/k: navigate  n: spawn agent  o: open tmux  a: select window  x: kill  q: quit" + reapInfo
 		}
