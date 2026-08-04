@@ -10,4 +10,4 @@ worktrees/
 GoCLI/tests/
 tests/
 
-*/agentsynch.db
+**/agentsynch.db

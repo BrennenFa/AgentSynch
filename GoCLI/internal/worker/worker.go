@@ -104,6 +104,38 @@ func SpawnAgent(db *sql.DB) error {
 		fmt.Fprintf(os.Stderr, "warning: could not record tmux window: %v\n", err)
 	}
 
+	// write/update vault task note with claimed status and branch
+	if cfg.VaultPath != "" {
+		repoName := vault.RepoName()
+		claimedAt := ""
+		if task.ClaimedAt != nil {
+			claimedAt = *task.ClaimedAt
+		}
+		claimedBy := ""
+		if task.ClaimedBy != nil {
+			claimedBy = *task.ClaimedBy
+		}
+		if err := vault.CreateTaskNote(cfg.VaultPath, repoName, task.ID, task.Title, task.Description, "claimed", claimedBy); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: vault: could not create task note: %v\n", err)
+		}
+		branch := ""
+		if task.BranchName != nil {
+			branch = *task.BranchName
+		}
+		fields := map[string]string{
+			"task_id":    fmt.Sprintf("%d", task.ID),
+			"repo":       repoName,
+			"status":     "claimed",
+			"created":    task.CreatedAt,
+			"claimed_by": claimedBy,
+			"claimed_at": claimedAt,
+			"branch":     branch,
+		}
+		if err := vault.UpdateFrontmatter(cfg.VaultPath, repoName, task.ID, fields); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: vault: could not update frontmatter: %v\n", err)
+		}
+	}
+
 	spawnHeartbeat(task.ID)
 
 	fmt.Printf("task-%d running in tmux window %q\n", task.ID, windowName)
