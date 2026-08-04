@@ -11,3 +11,6 @@ GoCLI/tests/
 tests/
 
 */agentsynch.db
+
+# goreleaser local build output
+dist/
