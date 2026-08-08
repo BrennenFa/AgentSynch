@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	bold            = lipgloss.NewStyle().Bold(true)
-	cursorCol       = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
-	errStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	activeTabStyle  = lipgloss.NewStyle().Bold(true).Underline(true)
+	bold             = lipgloss.NewStyle().Bold(true)
+	cursorCol        = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	errStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	activeTabStyle   = lipgloss.NewStyle().Bold(true).Underline(true)
 	inactiveTabStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 
 	statusColor = map[string]lipgloss.Style{
@@ -44,6 +44,14 @@ func (m model) View() string {
 	// ── left pane ────────────────────────────────────────────────────────────
 	var leftB strings.Builder
 
+	// rows available for list content below the 2-line header; the list is
+	// windowed to this many rows so it can never overflow the fixed-height
+	// left pane, no matter how many tasks/agents exist.
+	listRows := contentH - 2
+	if listRows < 1 {
+		listRows = 1
+	}
+
 	if m.activeTab == 0 {
 		// tasks tab: ID(4)  Status(11)  Title(remaining)
 		titleW := leftW - 4 - 11 - 4 // subtract ID, status, spacing
@@ -54,7 +62,9 @@ func (m model) View() string {
 		leftB.WriteString(bold.Render(fmt.Sprintf("%-4s  %-11s  %s", "ID", "Status", "Title")) + "\n")
 		leftB.WriteString(strings.Repeat("─", leftW) + "\n")
 
-		for i, t := range m.tasks {
+		start, end := scrollWindow(len(m.tasks), m.cursor, listRows)
+		for i := start; i < end; i++ {
+			t := m.tasks[i]
 			cursor := "  "
 			if i == m.cursor {
 				cursor = cursorCol.Render("> ")
@@ -80,7 +90,9 @@ func (m model) View() string {
 		leftB.WriteString(bold.Render(fmt.Sprintf("  %-20s  %-*s  %-8s", "Agent", taskColW, "Task", "Beat")) + "\n")
 		leftB.WriteString(strings.Repeat("─", leftW) + "\n")
 
-		for i, t := range agents {
+		start, end := scrollWindow(len(agents), m.agentCursor, listRows)
+		for i := start; i < end; i++ {
+			t := agents[i]
 			cursor := "  "
 			if i == m.agentCursor {
 				cursor = cursorCol.Render("> ")
@@ -322,6 +334,24 @@ func trunc(s string, n int) string {
 		return s
 	}
 	return s[:n-1] + "…"
+}
+
+// scrollWindow returns [start, end) into a list of length n, sized to at
+// most rows entries, positioned so cursor stays visible. Keeping the window
+// capped to rows guarantees the rendered list never exceeds the fixed-height
+// pane it's drawn into.
+func scrollWindow(n, cursor, rows int) (int, int) {
+	if n <= rows {
+		return 0, n
+	}
+	start := cursor - rows/2
+	if start < 0 {
+		start = 0
+	}
+	if start > n-rows {
+		start = n - rows
+	}
+	return start, start + rows
 }
 
 func byStatus(tasks []objects.Task, status string) []objects.Task {
