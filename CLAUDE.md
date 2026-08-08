@@ -12,7 +12,7 @@ For all CLI commands, see [`commands.md`](./commands.md).
 2. Check if a plan exists — if not, write one
 3. Check the vault task note for any prior context (if a vault is configured)
 4. Do the work described in the task
-5. Mark the task `finished` (or `error` if it fails)
+5. Ask the user to confirm the work is actually done before marking it `finished` (mark it `error` immediately if it fails — no confirmation needed for that)
 6. Claim the next task and repeat — stop only when there are no available tasks
 
 ## Task statuses
@@ -71,7 +71,7 @@ Execute whatever the task's `title` and `description` ask for.
 
 ### 5. Mark the task complete
 
-On success:
+On success, do not run `finish` right away. First tell the user what you did and ask them to confirm the task is actually done and working. Only run `finish` after they confirm:
 ```bash
 cd GoCLI && go run ./cmd/... finish --id <id>
 cd GoCLI && go run ./cmd/... finish --id <id> --output "optional summary"
