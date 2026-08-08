@@ -1,13 +1,11 @@
 package db
 
 import (
-	"bufio"
 	"database/sql"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"agentsynch/internal/config"
 	"agentsynch/internal/store"
@@ -43,12 +41,8 @@ func Finish() {
 
 	hasBranch := task != nil && task.BranchName != nil && *task.BranchName != ""
 
-	// auto-commit any uncommitted work before pushing, after confirming with the user
+	// auto-commit any uncommitted work before pushing
 	if hasBranch && task != nil {
-		if !confirmUncommittedChanges() {
-			fmt.Println("finish aborted: uncommitted changes not confirmed")
-			os.Exit(1)
-		}
 		autoCommit(task.ID, task.Title)
 	}
 
@@ -107,26 +101,6 @@ func Finish() {
 			}
 		}
 	}
-}
-
-// confirmUncommittedChanges shows uncommitted changes and asks for y/n before they get
-// auto-committed and pushed. Returns true if there is nothing to commit or the user confirms.
-func confirmUncommittedChanges() bool {
-	out, err := exec.Command("git", "status", "--porcelain").Output()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not check git status: %v\n", err)
-		return true
-	}
-	if strings.TrimSpace(string(out)) == "" {
-		return true
-	}
-	fmt.Println("uncommitted changes about to be auto-committed and pushed:")
-	fmt.Println(string(out))
-	fmt.Print("commit and push these? [y/N] ")
-	reader := bufio.NewReader(os.Stdin)
-	answer, _ := reader.ReadString('\n')
-	answer = strings.TrimSpace(strings.ToLower(answer))
-	return answer == "y" || answer == "yes"
 }
 
 // autoCommit stages all changes and commits them. If there is nothing to commit, it is a no-op.
