@@ -33,21 +33,32 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
     PRIMARY KEY (task_id, depends_on_id)
 );`
 
-func Open() (*sql.DB, error) {
-	// issue if cannot find correct dir
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("could not find home directory: %w", err)
+// Open opens (and initializes, if needed) the task database at dbPath.
+// If dbPath is empty, it falls back to the default ~/.agentsynch/tasks.db.
+func Open(dbPath string) (*sql.DB, error) {
+	if dbPath == "" {
+		// issue if cannot find correct dir
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("could not find home directory: %w", err)
+		}
+
+		// issue if cannot create dir
+		dir := filepath.Join(home, ".agentsynch")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("could not create %s: %w", dir, err)
+		}
+
+		dbPath = filepath.Join(dir, "tasks.db")
+	} else {
+		// ensure the parent dir of a custom path exists
+		if dir := filepath.Dir(dbPath); dir != "" && dir != "." {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return nil, fmt.Errorf("could not create %s: %w", dir, err)
+			}
+		}
 	}
 
-	// issue if cannot create dir
-	dir := filepath.Join(home, ".agentsynch")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("could not create %s: %w", dir, err)
-	}
-
-	// validate whether
-	dbPath := filepath.Join(dir, "tasks.db")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not open database: %w", err)

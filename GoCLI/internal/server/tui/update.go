@@ -29,7 +29,11 @@ type tasksLoadedMsg struct {
 	err   error
 }
 
-type previewLoadedMsg string
+type previewLoadedMsg struct {
+	tab    int
+	cursor int
+	text   string
+}
 
 type spawnResultMsg struct{ err error }
 
@@ -69,20 +73,22 @@ func loadTasks(db *sql.DB) tea.Cmd {
 }
 
 // loadPreview captures the tmux pane for the currently selected task.
-// Returns previewLoadedMsg with the output, or empty string if no window.
-func loadPreview(tasks []objects.Task, cursor int) tea.Cmd {
+// tab/cursor are stamped onto the result so a stale reply arriving after
+// the user has switched tabs or moved the cursor can be discarded instead
+// of being applied to the wrong selection.
+func loadPreview(tasks []objects.Task, tab, cursor int) tea.Cmd {
 	return func() tea.Msg {
 		if cursor < 0 || cursor >= len(tasks) {
-			return previewLoadedMsg("")
+			return previewLoadedMsg{tab: tab, cursor: cursor, text: ""}
 		}
 		t := tasks[cursor]
 		if t.TmuxWindow == nil {
-			return previewLoadedMsg("")
+			return previewLoadedMsg{tab: tab, cursor: cursor, text: ""}
 		}
 		target := fmt.Sprintf("agentsynch:%s", *t.TmuxWindow)
 		out, err := exec.Command("tmux", "capture-pane", "-t", target, "-p").Output()
 		if err != nil {
-			return previewLoadedMsg("")
+			return previewLoadedMsg{tab: tab, cursor: cursor, text: ""}
 		}
 		// strip trailing blank lines
 		lines := strings.Split(string(out), "\n")
@@ -90,15 +96,15 @@ func loadPreview(tasks []objects.Task, cursor int) tea.Cmd {
 		for last > 0 && strings.TrimSpace(lines[last-1]) == "" {
 			last--
 		}
-		return previewLoadedMsg(strings.Join(lines[:last], "\n"))
+		return previewLoadedMsg{tab: tab, cursor: cursor, text: strings.Join(lines[:last], "\n")}
 	}
 }
 
 func (m model) activePreviewCmd() tea.Cmd {
 	if m.activeTab == 0 {
-		return loadPreview(m.tasks, m.cursor)
+		return loadPreview(m.tasks, 0, m.cursor)
 	}
-	return loadPreview(byStatus(m.tasks, "claimed"), m.agentCursor)
+	return loadPreview(byStatus(m.tasks, "claimed"), 1, m.agentCursor)
 }
 
 func (m model) Init() tea.Cmd {
@@ -114,7 +120,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case previewLoadedMsg:
-		m.preview = string(msg)
+		curCursor := m.cursor
+		if m.activeTab == 1 {
+			curCursor = m.agentCursor
+		}
+		if msg.tab != m.activeTab || msg.cursor != curCursor {
+			// stale reply from a tab/selection we've since navigated away from
+			return m, nil
+		}
+		m.preview = msg.text
 		return m, nil
 
 	case tickMsg:
@@ -261,14 +275,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor < len(m.tasks)-1 {
 					m.cursor++
 					m.preview = ""
-					return m, loadPreview(m.tasks, m.cursor)
+					return m, loadPreview(m.tasks, 0, m.cursor)
 				}
 			} else {
 				agents := byStatus(m.tasks, "claimed")
 				if m.agentCursor < len(agents)-1 {
 					m.agentCursor++
 					m.preview = ""
-					return m, loadPreview(agents, m.agentCursor)
+					return m, loadPreview(agents, 1, m.agentCursor)
 				}
 			}
 
@@ -277,22 +291,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor > 0 {
 					m.cursor--
 					m.preview = ""
-					return m, loadPreview(m.tasks, m.cursor)
+					return m, loadPreview(m.tasks, 0, m.cursor)
 				}
 			} else {
 				if m.agentCursor > 0 {
 					m.agentCursor--
 					agents := byStatus(m.tasks, "claimed")
 					m.preview = ""
-					return m, loadPreview(agents, m.agentCursor)
+					return m, loadPreview(agents, 1, m.agentCursor)
 				}
 			}
 
 		case "n":
-			// spawn agent — agents tab only
-			if m.activeTab != 1 {
+			if m.activeTab == 0 {
+				// add task — tasks tab
+				m.addingTask = true
+				m.titleInput = ""
+				m.descInput = ""
+				m.formField = 0
+				m.err = ""
 				return m, nil
 			}
+			// spawn agent — agents tab
 			if len(byStatus(m.tasks, "available")) == 0 {
 				m.err = "no available tasks"
 				return m, nil
@@ -336,17 +356,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.err = ""
 				}
 			}
-
-		case "c":
-			// add task — tasks tab only
-			if m.activeTab != 0 {
-				return m, nil
-			}
-			m.addingTask = true
-			m.titleInput = ""
-			m.descInput = ""
-			m.formField = 0
-			m.err = ""
 
 		case "d":
 			// delete — tasks tab only

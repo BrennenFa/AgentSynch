@@ -21,7 +21,7 @@ func Claim() {
 	// unique agent id based on hostname and process id
 	agentID := fmt.Sprintf("agent-%s-%d", hostname, os.Getpid())
 
-	db, err := store.Open()
+	db, err := store.Open("")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
 		os.Exit(1)

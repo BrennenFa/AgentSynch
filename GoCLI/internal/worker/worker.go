@@ -113,7 +113,7 @@ func SpawnAgent(db *sql.DB) error {
 // Run is the main worker loop. Claims tasks and spawns tmux windows for each.
 // Sleeps for interval only when no tasks are available or on error; otherwise loops immediately.
 func Run(interval time.Duration) {
-	db, err := store.Open()
+	db, err := store.Open("")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
 		os.Exit(1)

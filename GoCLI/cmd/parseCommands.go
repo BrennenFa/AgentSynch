@@ -4,6 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"agentsynch/internal/server"
@@ -23,6 +26,23 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  tui          open the live dashboard (runs reaper + github worker)")
 		fmt.Fprintln(os.Stderr, "  worker       poll for tasks and run them in tmux windows")
 		os.Exit(1)
+	}
+
+	// All subcommands except `config` assume they're running inside a project
+	// repo checkout with a CLAUDE.md at its root (git worktrees, agent prompts,
+	// etc. all depend on this). Fail fast with a clear message instead of
+	// letting it crash deep in a subcommand.
+	if os.Args[1] != "config" {
+		out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "agentsynch: not inside a git repository — run this command from within a project checkout")
+			os.Exit(1)
+		}
+		repoRoot := strings.TrimSpace(string(out))
+		if _, err := os.Stat(filepath.Join(repoRoot, "CLAUDE.md")); err != nil {
+			fmt.Fprintln(os.Stderr, "agentsynch: no CLAUDE.md found at repo root ("+repoRoot+") — this command requires a CLAUDE.md-configured project")
+			os.Exit(1)
+		}
 	}
 
 	switch os.Args[1] {

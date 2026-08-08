@@ -36,7 +36,7 @@ func Add() {
 		description = strings.TrimSpace(description)
 	}
 
-	db, err := store.Open()
+	db, err := store.Open("")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error saving task: %v\n", err)
 		os.Exit(1)

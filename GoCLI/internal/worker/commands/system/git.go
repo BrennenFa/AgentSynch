@@ -71,6 +71,11 @@ func CreateIssue(task objects.Task) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
+// maxSlugLen caps branch-name slugs well under filesystem/ref limits (macOS
+// APFS rejects path components over 255 bytes) so a long or garbled task
+// title can't silently break worktree creation.
+const maxSlugLen = 60
+
 // TitleSlug converts a task title to a lowercase hyphenated slug for branch names.
 func TitleSlug(title string) string {
 	s := strings.ToLower(title)
@@ -80,5 +85,8 @@ func TitleSlug(title string) string {
 		s = strings.ReplaceAll(s, "--", "-")
 	}
 	s = strings.Trim(s, "-")
+	if len(s) > maxSlugLen {
+		s = strings.Trim(s[:maxSlugLen], "-")
+	}
 	return s
 }
