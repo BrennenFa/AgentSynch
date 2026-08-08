@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"agentsynch/internal/server"
@@ -29,18 +27,15 @@ func main() {
 	}
 
 	// All subcommands except `config` assume they're running inside a project
-	// repo checkout with a CLAUDE.md at its root (git worktrees, agent prompts,
-	// etc. all depend on this). Fail fast with a clear message instead of
-	// letting it crash deep in a subcommand.
+	// repo checkout (git worktrees, agent prompts, etc. all depend on this).
+	// Fail fast with a clear message instead of letting it crash deep in a
+	// subcommand.
+	// check that
+	// 1. config is not the first command --- sets directories (db + obsidain), otherwise falls back on defaults
+	// if it is a repo, validate that there is a current repo
 	if os.Args[1] != "config" {
-		out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
-		if err != nil {
+		if _, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err != nil {
 			fmt.Fprintln(os.Stderr, "agentsynch: not inside a git repository — run this command from within a project checkout")
-			os.Exit(1)
-		}
-		repoRoot := strings.TrimSpace(string(out))
-		if _, err := os.Stat(filepath.Join(repoRoot, "CLAUDE.md")); err != nil {
-			fmt.Fprintln(os.Stderr, "agentsynch: no CLAUDE.md found at repo root ("+repoRoot+") — this command requires a CLAUDE.md-configured project")
 			os.Exit(1)
 		}
 	}

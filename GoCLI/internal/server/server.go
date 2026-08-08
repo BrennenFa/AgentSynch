@@ -18,13 +18,12 @@ const reapInterval = 30 * time.Second
 const zombieTimeout = 1 * time.Minute
 
 func TUI() {
-	cfg, err := loadOrSetupConfig()
-	if err != nil {
+	if _, err := loadOrSetupConfig(); err != nil {
 		fmt.Fprintf(os.Stderr, "error resolving config: %v\n", err)
 		os.Exit(1)
 	}
 
-	db, err := store.Open(cfg.DBPath)
+	db, err := store.Open()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
 		os.Exit(1)

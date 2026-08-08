@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	_ "modernc.org/sqlite"
+
+	"agentsynch/internal/config"
 )
 
 const schema = `
@@ -33,9 +35,16 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
     PRIMARY KEY (task_id, depends_on_id)
 );`
 
-// Open opens (and initializes, if needed) the task database at dbPath.
-// If dbPath is empty, it falls back to the default ~/.agentsynch/tasks.db.
-func Open(dbPath string) (*sql.DB, error) {
+// Open opens (and initializes, if needed) the task database at the path
+// configured via `agentsynch config --db`. Falls back to the default
+// ~/.agentsynch/tasks.db if unset.
+func Open() (*sql.DB, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, fmt.Errorf("could not load config: %w", err)
+	}
+	dbPath := cfg.DBPath
+
 	if dbPath == "" {
 		// issue if cannot find correct dir
 		home, err := os.UserHomeDir()

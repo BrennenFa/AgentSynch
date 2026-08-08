@@ -23,7 +23,7 @@ func SetBranch() {
 		os.Exit(1)
 	}
 
-	db, err := store.Open("")
+	db, err := store.Open()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
 		os.Exit(1)
