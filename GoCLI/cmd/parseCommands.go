@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"time"
 
 	"agentsynch/internal/server"
@@ -23,6 +24,15 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  tui          open the live dashboard (runs reaper + github worker)")
 		fmt.Fprintln(os.Stderr, "  worker       poll for tasks and run them in tmux windows")
 		os.Exit(1)
+	}
+
+	// 1. config is not the first command --- sets directories (db + obsidain), otherwise falls back on defaults
+	// if it is a repo, validate that there is a current repo
+	if os.Args[1] != "config" {
+		if _, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err != nil {
+			fmt.Fprintln(os.Stderr, "agentsynch: not inside a git repository — run this command from within a project checkout")
+			os.Exit(1)
+		}
 	}
 
 	switch os.Args[1] {
