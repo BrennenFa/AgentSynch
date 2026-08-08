@@ -289,10 +289,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "n":
-			// spawn agent — agents tab only
-			if m.activeTab != 1 {
+			if m.activeTab == 0 {
+				// add task — tasks tab
+				m.addingTask = true
+				m.titleInput = ""
+				m.descInput = ""
+				m.formField = 0
+				m.err = ""
 				return m, nil
 			}
+			// spawn agent — agents tab
 			if len(byStatus(m.tasks, "available")) == 0 {
 				m.err = "no available tasks"
 				return m, nil
@@ -336,17 +342,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.err = ""
 				}
 			}
-
-		case "c":
-			// add task — tasks tab only
-			if m.activeTab != 0 {
-				return m, nil
-			}
-			m.addingTask = true
-			m.titleInput = ""
-			m.descInput = ""
-			m.formField = 0
-			m.err = ""
 
 		case "d":
 			// delete — tasks tab only
