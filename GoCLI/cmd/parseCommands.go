@@ -26,11 +26,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// All subcommands except `config` assume they're running inside a project
-	// repo checkout (git worktrees, agent prompts, etc. all depend on this).
-	// Fail fast with a clear message instead of letting it crash deep in a
-	// subcommand.
-	// check that
 	// 1. config is not the first command --- sets directories (db + obsidain), otherwise falls back on defaults
 	// if it is a repo, validate that there is a current repo
 	if os.Args[1] != "config" {
