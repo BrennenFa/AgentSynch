@@ -46,7 +46,10 @@ func (m model) View() string {
 
 	// rows available for list content below the 2-line header; the list is
 	// windowed to this many rows so it can never overflow the fixed-height
-	// left pane, no matter how many tasks/agents exist.
+	// left pane, no matter how many tasks/agents exist. Without this clamp a
+	// tab with more rows than fits produces a taller rendered block than a
+	// tab with fewer rows, which lipgloss.Height only pads (never truncates),
+	// so panes drift out of sync across tab switches.
 	listRows := contentH - 2
 	if listRows < 1 {
 		listRows = 1
@@ -174,10 +177,7 @@ func (m model) View() string {
 					lines = lines[len(lines)-previewH:]
 				}
 				for _, l := range lines {
-					if len(l) > rightW-1 {
-						l = l[:rightW-1]
-					}
-					rightB.WriteString(l + "\n")
+					rightB.WriteString(trunc(l, rightW-1) + "\n")
 				}
 			}
 		}
@@ -215,10 +215,7 @@ func (m model) View() string {
 					lines = lines[len(lines)-previewH:]
 				}
 				for _, l := range lines {
-					if len(l) > rightW-1 {
-						l = l[:rightW-1]
-					}
-					rightB.WriteString(l + "\n")
+					rightB.WriteString(trunc(l, rightW-1) + "\n")
 				}
 			}
 		}
@@ -243,27 +240,34 @@ func (m model) View() string {
 		tasksLabel = inactiveTabStyle.Render(tasksLabel)
 		agentsLabel = activeTabStyle.Render(agentsLabel)
 	}
-	out.WriteString("AgentSynch  " + tasksLabel + "  " + agentsLabel + "\n\n")
+	// fixed-width line style: header/footer text length varies materially
+	// between tabs (different hints, optional err/reap suffixes), and
+	// bubbletea only erases a line as far as the renderer knows it's wide —
+	// padding every header/footer line out to the full terminal width keeps
+	// stale characters from a wider previous render from surviving a switch.
+	line := lipgloss.NewStyle().Width(w)
+
+	out.WriteString(line.Render("AgentSynch  "+tasksLabel+"  "+agentsLabel) + "\n\n")
 
 	out.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane))
 	out.WriteString("\n")
 
 	// footer
 	if m.confirming && m.cursor < len(m.tasks) {
-		out.WriteString(errStyle.Render(fmt.Sprintf("delete task-%d \"%s\"? (y/n)",
-			m.tasks[m.cursor].ID, m.tasks[m.cursor].Title)))
+		out.WriteString(line.Render(errStyle.Render(fmt.Sprintf("delete task-%d \"%s\"? (y/n)",
+			m.tasks[m.cursor].ID, m.tasks[m.cursor].Title))))
 	} else if m.confirmingKill {
 		agents := byStatus(m.tasks, "claimed")
 		if m.agentCursor < len(agents) {
 			agentName := deref(agents[m.agentCursor].ClaimedBy, "?")
-			out.WriteString(errStyle.Render(fmt.Sprintf("kill agent \"%s\" and reset task? (y/n)", agentName)))
+			out.WriteString(line.Render(errStyle.Render(fmt.Sprintf("kill agent \"%s\" and reset task? (y/n)", agentName))))
 		}
 	} else if m.addingTask {
 		hint := inactiveTabStyle.Render("tab: switch field  enter: submit  esc: cancel")
 		if m.err != "" {
 			hint += "  " + errStyle.Render("err: "+m.err)
 		}
-		out.WriteString(hint)
+		out.WriteString(line.Render(hint))
 	} else {
 		var footer string
 		reapInfo := ""
@@ -271,14 +275,14 @@ func (m model) View() string {
 			reapInfo = "  reaper: " + m.reapMsg
 		}
 		if m.activeTab == 0 {
-			footer = "tab: switch  j/k: navigate  o: open tmux  a: select window  c: add  d: delete  q: quit" + reapInfo
+			footer = "tab: switch  j/k: navigate  o: open tmux  a: select window  p: open in obsidian  n: add  d: delete  q: quit" + reapInfo
 		} else {
 			footer = "tab: switch  j/k: navigate  n: spawn agent  o: open tmux  a: select window  x: kill  q: quit" + reapInfo
 		}
 		if m.err != "" {
 			footer += "  " + errStyle.Render("err: "+m.err)
 		}
-		out.WriteString(footer)
+		out.WriteString(line.Render(footer))
 	}
 
 	return out.String()
@@ -330,28 +334,33 @@ func deref(s *string, def string) string {
 }
 
 func trunc(s string, n int) string {
-	if len(s) <= n {
+	r := []rune(s)
+	if len(r) <= n {
 		return s
 	}
-	return s[:n-1] + "…"
+	if n <= 0 {
+		return ""
+	}
+	return string(r[:n-1]) + "…"
 }
 
-// scrollWindow returns [start, end) into a list of length n, sized to at
-// most rows entries, positioned so cursor stays visible. Keeping the window
-// capped to rows guarantees the rendered list never exceeds the fixed-height
-// pane it's drawn into.
-func scrollWindow(n, cursor, rows int) (int, int) {
-	if n <= rows {
+// scrollWindow returns the [start, end) slice bounds of a list of length n
+// that should be rendered given a maximum of maxRows visible rows, keeping
+// cursor within the visible window.
+func scrollWindow(n, cursor, maxRows int) (int, int) {
+	if maxRows <= 0 || n <= maxRows {
 		return 0, n
 	}
-	start := cursor - rows/2
+	start := cursor - maxRows/2
 	if start < 0 {
 		start = 0
 	}
-	if start > n-rows {
-		start = n - rows
+	end := start + maxRows
+	if end > n {
+		end = n
+		start = end - maxRows
 	}
-	return start, start + rows
+	return start, end
 }
 
 func byStatus(tasks []objects.Task, status string) []objects.Task {

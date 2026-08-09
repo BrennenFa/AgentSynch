@@ -22,6 +22,9 @@ type model struct {
 	preview         string // last tmux capture-pane output
 	width           int    // terminal width from WindowSizeMsg
 	height          int    // terminal height from WindowSizeMsg
+	vaultPath       string // path to Obsidian vault (empty if not configured)
+	repoName        string // git repo base name for vault note paths
+
 	// add task form
 	addingTask bool   // add-task form is open
 	formField  int    // 0 = title, 1 = description
