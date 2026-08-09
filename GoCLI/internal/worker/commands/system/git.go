@@ -71,6 +71,9 @@ func CreateIssue(task objects.Task) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
+// max character length for branch name slug
+const maxSlugLen = 20
+
 // TitleSlug converts a task title to a lowercase hyphenated slug for branch names.
 func TitleSlug(title string) string {
 	s := strings.ToLower(title)
@@ -80,5 +83,8 @@ func TitleSlug(title string) string {
 		s = strings.ReplaceAll(s, "--", "-")
 	}
 	s = strings.Trim(s, "-")
+	if len(s) > maxSlugLen {
+		s = strings.Trim(s[:maxSlugLen], "-")
+	}
 	return s
 }

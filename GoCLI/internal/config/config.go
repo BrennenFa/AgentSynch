@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	VaultPath string `json:"vault_path"`
+	DBPath    string `json:"db_path"`
 }
 
 func configPath() (string, error) {
@@ -36,6 +37,22 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	return cfg, nil
+}
+
+// Exists reports whether ~/.agentsynch/config.json already exists.
+func Exists() (bool, error) {
+	path, err := configPath()
+	if err != nil {
+		return false, err
+	}
+	_, err = os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // Save writes cfg to ~/.agentsynch/config.json.
