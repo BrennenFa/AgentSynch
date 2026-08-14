@@ -43,17 +43,11 @@ claimed task-5: Fix login bug (agent: agent-mbp-1234)
 
 ### 2. Check for a plan
 
-If the task has a `plan`, read it and use it to guide your work.
+If a vault is configured, `claim` already created the task note (`task-N.md`) with an empty `## Plan` section. If it has content, read it and use it to guide your work.
 
-If there is no plan, write one before executing:
+If there is no plan yet, write one before executing by editing the `## Plan` section of the vault task note directly. Keep it concise — what you intend to do and why.
 
-```bash
-cd GoCLI && go run ./cmd/... plan --id <id> --plan "your approach"
-```
-
-Keep the plan concise — what you intend to do and why.
-
-> The `plan` command automatically creates and writes to the vault task note (`task-N.md`) if a vault is configured — no extra steps needed.
+If no vault is configured, there's no note to write a plan into — just proceed with a plan in mind.
 
 ### 3. Check the vault task note
 
@@ -88,11 +82,6 @@ cd GoCLI && go run ./cmd/... finish --id <id> --error "what went wrong"
 
 ```bash
 cd GoCLI && go run ./cmd/... add --title "short task name" --description "what needs to be done"
-```
-
-Include a plan if the approach is already clear:
-```bash
-cd GoCLI && go run ./cmd/... add --title "..." --description "..." --plan "approach"
 ```
 
 ## Branch workflow

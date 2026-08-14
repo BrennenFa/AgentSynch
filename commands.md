@@ -37,7 +37,6 @@ Add a new task.
 
 ```
 go run ./cmd/... add --title "short name" --description "what needs to be done"
-go run ./cmd/... add --title "short name" --description "what needs to be done" --plan "approach"
 ```
 
 ---
@@ -58,15 +57,6 @@ Mark a claimed task as finished or error. Pushes the branch and opens a GitHub P
 go run ./cmd/... finish --id <id>
 go run ./cmd/... finish --id <id> --output "summary of what was done"
 go run ./cmd/... finish --id <id> --error "what went wrong"
-```
-
----
-
-## plan
-Write a plan for a claimed task.
-
-```
-go run ./cmd/... plan --id <id> --plan "your approach"
 ```
 
 ---
