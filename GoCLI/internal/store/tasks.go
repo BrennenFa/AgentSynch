@@ -8,7 +8,7 @@ import (
 )
 
 // allColumns is the full column list used by every read query.
-const allColumns = `id, title, description, status, claimed_by, claimed_at, created_at,
+const allColumns = `id, title, COALESCE(description, ''), status, claimed_by, claimed_at, created_at,
 	finished_at, output, error, heartbeat_at, attempts, same_branch, branch_name, gh_url, tmux_window`
 
 func scanTask(row interface {

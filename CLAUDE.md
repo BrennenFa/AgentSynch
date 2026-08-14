@@ -107,3 +107,4 @@ When you run `finish`, the CLI automatically pushes the branch to origin so the 
 - If a task asks you to create files, create them in the project root unless the task specifies otherwise.
 - If you are unsure what a task wants, make a reasonable interpretation and note it in `output`.
 - Before `finish` auto-commits and pushes any uncommitted changes, it must ask the user for yes/no confirmation first — never auto-commit/push silently.
+- Never write to the SQLite DB directly (no raw `sqlite3 ... INSERT/UPDATE`). Always go through the CLI (`add`, `claim`, `finish`, `set-branch`) — those are the only paths that guarantee non-nullable fields like `description` get a real value instead of `NULL`, which previously broke `ListTasks` for every task at once.
