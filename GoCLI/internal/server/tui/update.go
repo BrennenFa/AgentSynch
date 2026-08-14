@@ -102,6 +102,31 @@ func loadPreview(tasks []objects.Task, tab, cursor int) tea.Cmd {
 	}
 }
 
+// resyncCursor re-derives a list cursor after a reload by following the
+// previously-selected task ID rather than trusting a raw index, which can
+// point at the wrong row (or past the end) once the underlying list has
+// been reordered, grown, or shrunk. Returns the new cursor and the ID now
+// under it (0 if the list is empty).
+func resyncCursor(list []objects.Task, cursor int, selectedID int64) (int, int64) {
+	if selectedID != 0 {
+		for i, t := range list {
+			if t.ID == selectedID {
+				return i, selectedID
+			}
+		}
+	}
+	if cursor >= len(list) {
+		cursor = len(list) - 1
+	}
+	if cursor < 0 {
+		cursor = 0
+	}
+	if len(list) == 0 {
+		return 0, 0
+	}
+	return cursor, list[cursor].ID
+}
+
 func (m model) activePreviewCmd() tea.Cmd {
 	if m.activeTab == 0 {
 		return loadPreview(m.tasks, 0, m.cursor)
@@ -146,6 +171,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.tasks = msg.tasks
 			m.err = ""
+			m.cursor, m.selectedID = resyncCursor(m.tasks, m.cursor, m.selectedID)
+			agents := byStatus(m.tasks, "claimed")
+			m.agentCursor, m.selectedAgentID = resyncCursor(agents, m.agentCursor, m.selectedAgentID)
 		}
 		return m, m.activePreviewCmd()
 
@@ -276,6 +304,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activeTab == 0 {
 				if m.cursor < len(m.tasks)-1 {
 					m.cursor++
+					m.selectedID = m.tasks[m.cursor].ID
 					m.preview = ""
 					return m, loadPreview(m.tasks, 0, m.cursor)
 				}
@@ -283,6 +312,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				agents := byStatus(m.tasks, "claimed")
 				if m.agentCursor < len(agents)-1 {
 					m.agentCursor++
+					m.selectedAgentID = agents[m.agentCursor].ID
 					m.preview = ""
 					return m, loadPreview(agents, 1, m.agentCursor)
 				}
@@ -292,6 +322,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activeTab == 0 {
 				if m.cursor > 0 {
 					m.cursor--
+					m.selectedID = m.tasks[m.cursor].ID
 					m.preview = ""
 					return m, loadPreview(m.tasks, 0, m.cursor)
 				}
@@ -299,6 +330,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.agentCursor > 0 {
 					m.agentCursor--
 					agents := byStatus(m.tasks, "claimed")
+					m.selectedAgentID = agents[m.agentCursor].ID
 					m.preview = ""
 					return m, loadPreview(agents, 1, m.agentCursor)
 				}

@@ -39,8 +39,6 @@ func SpawnAgent(db *sql.DB) error {
 		return ErrNoTasks
 	}
 
-	fmt.Printf("claimed task-%d: %s\n", task.ID, task.Title)
-
 	if cfg.VaultPath != "" {
 		repoName := vault.RepoName()
 		_ = vault.CreateTaskNote(cfg.VaultPath, repoName, task.ID, task.Title, task.Description, task.Status, agentID)
@@ -67,46 +65,31 @@ func SpawnAgent(db *sql.DB) error {
 			}
 		}
 
-		if created == "" {
-			fmt.Fprintf(os.Stderr, "warning: could not create worktree for task-%d\n", task.ID)
-		} else {
-			if err := store.SetBranchName(db, task.ID, created); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: could not record branch name: %v\n", err)
-			}
+		if created != "" {
+			_ = store.SetBranchName(db, task.ID, created)
 		}
 	}
 
 	windowIndex, err := system.NewWindow(windowName)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: could not create tmux window %s: %v\n", windowName, err)
-		if err := store.ErrorTask(db, task.ID, fmt.Sprintf("failed to create tmux window: %v", err)); err != nil {
-			fmt.Fprintf(os.Stderr, "error: could not mark task-%d as error: %v\n", task.ID, err)
-		}
+		_ = store.ErrorTask(db, task.ID, fmt.Sprintf("failed to create tmux window: %v", err))
 		return fmt.Errorf("could not create tmux window %s: %w", windowName, err)
 	}
 
 	if worktreeDir != "" {
-		if err := system.SendKeys(windowIndex, fmt.Sprintf("cd %s", worktreeDir)); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not send cd to window %s: %v\n", windowIndex, err)
-		}
+		_ = system.SendKeys(windowIndex, fmt.Sprintf("cd %s", worktreeDir))
 	}
 
 	claudeCmd := buildClaudePrompt(cfg, task.ID, task.Title)
 	if err := system.SendKeys(windowIndex, claudeCmd); err != nil {
-		fmt.Fprintf(os.Stderr, "error: could not send claude command to window %s: %v\n", windowIndex, err)
-		if err := store.ErrorTask(db, task.ID, fmt.Sprintf("failed to start claude in tmux window: %v", err)); err != nil {
-			fmt.Fprintf(os.Stderr, "error: could not mark task-%d as error: %v\n", task.ID, err)
-		}
+		_ = store.ErrorTask(db, task.ID, fmt.Sprintf("failed to start claude in tmux window: %v", err))
 		return fmt.Errorf("could not send claude command to window %s: %w", windowIndex, err)
 	}
 
-	if err := store.SetTmuxWindow(db, task.ID, windowName); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not record tmux window: %v\n", err)
-	}
+	_ = store.SetTmuxWindow(db, task.ID, windowName)
 
 	spawnHeartbeat(task.ID)
 
-	fmt.Printf("task-%d running in tmux window %q\n", task.ID, windowName)
 	return nil
 }
 
