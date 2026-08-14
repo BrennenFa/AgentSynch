@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 
 	"agentsynch/internal/objects"
 )
@@ -56,10 +57,9 @@ func (m model) View() string {
 	}
 
 	if m.activeTab == 0 {
-		// tasks tab: ID(4)  Status(11)  Title(remaining)
-		titleW := leftW - 4 - 11 - 4 // subtract ID, status, spacing
-		if titleW < 8 {
-			titleW = 8
+		titleW := leftW - 2 - 4 - 11 - 4
+		if titleW < 0 {
+			titleW = 0
 		}
 
 		leftB.WriteString(bold.Render(fmt.Sprintf("%-4s  %-11s  %s", "ID", "Status", "Title")) + "\n")
@@ -81,16 +81,20 @@ func (m model) View() string {
 			leftB.WriteString(line + "\n")
 		}
 	} else {
-		// agents tab: Agent(20)  Task(remaining)  Beat(8)
+		// agents tab: Agent(<=20)  Task(remaining)  Beat(8)
 		agents := byStatus(m.tasks, "claimed")
-		agentColW := 20
 		beatColW := 8
-		taskColW := leftW - agentColW - beatColW - 4 - 2 // 4 spacing, 2 cursor
-		if taskColW < 8 {
-			taskColW = 8
+		availW := leftW - beatColW - 6
+		if availW < 0 {
+			availW = 0
 		}
+		agentColW := 20
+		if agentColW > availW {
+			agentColW = availW
+		}
+		taskColW := availW - agentColW
 
-		leftB.WriteString(bold.Render(fmt.Sprintf("  %-20s  %-*s  %-8s", "Agent", taskColW, "Task", "Beat")) + "\n")
+		leftB.WriteString(bold.Render(fmt.Sprintf("  %-*s  %-*s  %-8s", agentColW, "Agent", taskColW, "Task", "Beat")) + "\n")
 		leftB.WriteString(strings.Repeat("─", leftW) + "\n")
 
 		start, end := scrollWindow(len(agents), m.agentCursor, listRows)
@@ -100,8 +104,9 @@ func (m model) View() string {
 			if i == m.agentCursor {
 				cursor = cursorCol.Render("> ")
 			}
-			line := fmt.Sprintf("%s%-20s  %-*s  %s",
+			line := fmt.Sprintf("%s%-*s  %-*s  %s",
 				cursor,
+				agentColW,
 				trunc(deref(t.ClaimedBy, "?"), agentColW),
 				taskColW,
 				trunc(t.Title, taskColW),
@@ -150,10 +155,10 @@ func (m model) View() string {
 		} else if m.cursor < len(m.tasks) {
 			t := m.tasks[m.cursor]
 
-			rightB.WriteString(bold.Render(fmt.Sprintf("task-%d: %s", t.ID, t.Title)) + "\n")
+			rightB.WriteString(bold.Render(trunc(fmt.Sprintf("task-%d: %s", t.ID, t.Title), rightW-2)) + "\n")
 			rightB.WriteString(strings.Repeat("─", rightW-2) + "\n")
-			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "agent:", deref(t.ClaimedBy, "-")))
-			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "window:", deref(t.TmuxWindow, "-")))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "agent:", trunc(deref(t.ClaimedBy, "-"), rightW-11)))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "window:", trunc(deref(t.TmuxWindow, "-"), rightW-11)))
 			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "beat:", heartbeatStr(t.HeartbeatAt)))
 			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "status:", colorStatus(t.Status)))
 			rightB.WriteString("\n")
@@ -190,10 +195,10 @@ func (m model) View() string {
 			t := agents[m.agentCursor]
 			agentName := deref(t.ClaimedBy, "?")
 
-			rightB.WriteString(bold.Render(agentName) + "\n")
+			rightB.WriteString(bold.Render(trunc(agentName, rightW-2)) + "\n")
 			rightB.WriteString(strings.Repeat("─", rightW-2) + "\n")
-			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "task:", t.Title))
-			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "window:", deref(t.TmuxWindow, "-")))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "task:", trunc(t.Title, rightW-11)))
+			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "window:", trunc(deref(t.TmuxWindow, "-"), rightW-11)))
 			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "beat:", heartbeatStr(t.HeartbeatAt)))
 			rightB.WriteString(fmt.Sprintf("%-8s %s\n", "status:", colorStatus(t.Status)))
 			rightB.WriteString("\n")
@@ -254,35 +259,34 @@ func (m model) View() string {
 
 	// footer
 	if m.confirming && m.cursor < len(m.tasks) {
-		out.WriteString(line.Render(errStyle.Render(fmt.Sprintf("delete task-%d \"%s\"? (y/n)",
-			m.tasks[m.cursor].ID, m.tasks[m.cursor].Title))))
+		out.WriteString(line.Render(errStyle.Render(trunc(fmt.Sprintf("delete task-%d \"%s\"? (y/n)",
+			m.tasks[m.cursor].ID, m.tasks[m.cursor].Title), w))))
 	} else if m.confirmingKill {
 		agents := byStatus(m.tasks, "claimed")
 		if m.agentCursor < len(agents) {
 			agentName := deref(agents[m.agentCursor].ClaimedBy, "?")
-			out.WriteString(line.Render(errStyle.Render(fmt.Sprintf("kill agent \"%s\" and reset task? (y/n)", agentName))))
+			out.WriteString(line.Render(errStyle.Render(trunc(fmt.Sprintf("kill agent \"%s\" and reset task? (y/n)", agentName), w))))
 		}
 	} else if m.addingTask {
-		hint := inactiveTabStyle.Render("tab: switch field  enter: submit  esc: cancel")
+		hint := "tab: switch field  enter: submit  esc: cancel"
 		if m.err != "" {
-			hint += "  " + errStyle.Render("err: "+m.err)
+			hint += "  " + trunc("err: "+m.err, w-runewidth.StringWidth(hint)-2)
 		}
-		out.WriteString(line.Render(hint))
+		out.WriteString(line.Render(trunc(hint, w)))
 	} else {
 		var footer string
-		reapInfo := ""
-		if m.reapMsg != "" {
-			reapInfo = "  reaper: " + m.reapMsg
-		}
 		if m.activeTab == 0 {
-			footer = "tab: switch  j/k: navigate  o: open tmux  a: select window  p: open in obsidian  n: add  d: delete  q: quit" + reapInfo
+			footer = "tab: switch  j/k: navigate  o: open tmux  a: select window  p: open in obsidian  n: add  d: delete  q: quit"
 		} else {
-			footer = "tab: switch  j/k: navigate  n: spawn agent  o: open tmux  a: select window  x: kill  q: quit" + reapInfo
+			footer = "tab: switch  j/k: navigate  n: spawn agent  o: open tmux  a: select window  x: kill  q: quit"
+		}
+		if m.reapMsg != "" {
+			footer += "  " + trunc("reaper: "+m.reapMsg, w-runewidth.StringWidth(footer)-2)
 		}
 		if m.err != "" {
-			footer += "  " + errStyle.Render("err: "+m.err)
+			footer += "  " + trunc("err: "+m.err, w-runewidth.StringWidth(footer)-2)
 		}
-		out.WriteString(line.Render(footer))
+		out.WriteString(line.Render(trunc(footer, w)))
 	}
 
 	return out.String()
@@ -334,14 +338,13 @@ func deref(s *string, def string) string {
 }
 
 func trunc(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
 	if n <= 0 {
 		return ""
 	}
-	return string(r[:n-1]) + "…"
+	if runewidth.StringWidth(s) <= n {
+		return s
+	}
+	return runewidth.Truncate(s, n, "…")
 }
 
 // scrollWindow returns the [start, end) slice bounds of a list of length n
