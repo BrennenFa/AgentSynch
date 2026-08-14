@@ -8,7 +8,7 @@ import (
 )
 
 // allColumns is the full column list used by every read query.
-const allColumns = `id, title, description, status, plan, claimed_by, claimed_at, created_at,
+const allColumns = `id, title, description, status, claimed_by, claimed_at, created_at,
 	finished_at, output, error, heartbeat_at, attempts, same_branch, branch_name, gh_url, tmux_window`
 
 func scanTask(row interface {
@@ -17,7 +17,7 @@ func scanTask(row interface {
 	var t objects.Task
 	var sameBranchInt int
 	err := row.Scan(
-		&t.ID, &t.Title, &t.Description, &t.Status, &t.Plan,
+		&t.ID, &t.Title, &t.Description, &t.Status,
 		&t.ClaimedBy, &t.ClaimedAt, &t.CreatedAt,
 		&t.FinishedAt, &t.Output, &t.Error,
 		&t.HeartbeatAt, &t.Attempts,
@@ -42,9 +42,9 @@ func AddTask(db *sql.DB, task objects.Task) (int64, error) {
 
 	// insert tasks based on the given items
 	result, err := tx.Exec(
-		`INSERT INTO tasks (title, description, status, plan, claimed_by, claimed_at, created_at, finished_at, output, error)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		task.Title, task.Description, task.Status, task.Plan,
+		`INSERT INTO tasks (title, description, status, claimed_by, claimed_at, created_at, finished_at, output, error)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		task.Title, task.Description, task.Status,
 		task.ClaimedBy, task.ClaimedAt, task.CreatedAt,
 		task.FinishedAt, task.Output, task.Error,
 	)

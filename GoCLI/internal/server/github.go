@@ -9,8 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"agentsynch/internal/config"
 	"agentsynch/internal/objects"
 	"agentsynch/internal/store"
+	"agentsynch/internal/vault"
 )
 
 const githubInterval = 10 * time.Second
@@ -79,9 +81,10 @@ func runGithubPass(db *sql.DB) {
 
 // createPR creates a GitHub PR for a finished new-branch task. Returns the PR URL.
 func createPR(task objects.Task) (string, error) {
+	// read plan from vault (vault is source of truth)
 	plan := ""
-	if task.Plan != nil {
-		plan = *task.Plan
+	if cfg, err := config.Load(); err == nil && cfg.VaultPath != "" {
+		plan = vault.ReadPlan(cfg.VaultPath, vault.RepoName(), task.ID)
 	}
 	output := ""
 	if task.Output != nil {

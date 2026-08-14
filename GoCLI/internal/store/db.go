@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	_ "modernc.org/sqlite"
+
+	"agentsynch/internal/config"
 )
 
 const schema = `
@@ -22,7 +24,6 @@ CREATE TABLE IF NOT EXISTS tasks (
     finished_at  TEXT,
     output       TEXT,
     error        TEXT,
-    plan         TEXT,
     heartbeat_at TEXT,
     attempts     INTEGER NOT NULL DEFAULT 0
 );
@@ -34,21 +35,39 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
     PRIMARY KEY (task_id, depends_on_id)
 );`
 
+// Open opens (and initializes, if needed) the task database at the path
+// configured via `agentsynch config --db`. Falls back to the default
+// ~/.agentsynch/tasks.db if unset.
 func Open() (*sql.DB, error) {
-	// issue if cannot find correct dir
-	home, err := os.UserHomeDir()
+	cfg, err := config.Load()
 	if err != nil {
-		return nil, fmt.Errorf("could not find home directory: %w", err)
+		return nil, fmt.Errorf("could not load config: %w", err)
+	}
+	dbPath := cfg.DBPath
+
+	if dbPath == "" {
+		// issue if cannot find correct dir
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("could not find home directory: %w", err)
+		}
+
+		// issue if cannot create dir
+		dir := filepath.Join(home, ".agentsynch")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("could not create %s: %w", dir, err)
+		}
+
+		dbPath = filepath.Join(dir, "tasks.db")
+	} else {
+		// ensure the parent dir of a custom path exists
+		if dir := filepath.Dir(dbPath); dir != "" && dir != "." {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return nil, fmt.Errorf("could not create %s: %w", dir, err)
+			}
+		}
 	}
 
-	// issue if cannot create dir
-	dir := filepath.Join(home, ".agentsynch")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("could not create %s: %w", dir, err)
-	}
-
-	// validate whether
-	dbPath := filepath.Join(dir, "tasks.db")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not open database: %w", err)

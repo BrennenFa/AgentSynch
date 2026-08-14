@@ -1,11 +1,15 @@
 package db
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 
+	"agentsynch/internal/config"
 	"agentsynch/internal/store"
+	"agentsynch/internal/vault"
 	"agentsynch/internal/worker/commands/system"
 )
 
@@ -37,6 +41,11 @@ func Finish() {
 
 	hasBranch := task != nil && task.BranchName != nil && *task.BranchName != ""
 
+	// auto-commit any uncommitted work before pushing
+	if hasBranch && task != nil {
+		autoCommit(task.ID, task.Title)
+	}
+
 	// push branch if one was recorded for this task
 	if hasBranch {
 		if err := system.PushBranch(*task.BranchName); err != nil {
@@ -54,6 +63,7 @@ func Finish() {
 			os.Exit(1)
 		}
 		fmt.Printf("task-%d marked as error\n", *idFlag)
+		appendToNotes(db, *idFlag, *errorFlag, "error")
 		// re-fetch task so CreateIssue sees the true DB state after ErrorTask
 		task, err = store.GetTask(db, *idFlag)
 		if err != nil || task == nil {
@@ -75,6 +85,7 @@ func Finish() {
 		os.Exit(1)
 	}
 	fmt.Printf("task-%d marked as finished\n", *idFlag)
+	appendToNotes(db, *idFlag, *outputFlag, "finished")
 
 	if hasBranch {
 		// re-fetch task so CreatePR sees the true DB state after FinishTask
@@ -89,5 +100,46 @@ func Finish() {
 				fmt.Printf("pr: %s\n", url)
 			}
 		}
+	}
+}
+
+// autoCommit stages all changes and commits them. If there is nothing to commit, it is a no-op.
+// Errors are warnings only — never blocks finish.
+func autoCommit(taskID int64, title string) {
+	if err := exec.Command("git", "add", "-A").Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: auto-commit: git add failed: %v\n", err)
+		return
+	}
+	msg := fmt.Sprintf("task-%d: %s", taskID, title)
+	out, err := exec.Command("git", "commit", "-m", msg).CombinedOutput()
+	if err != nil {
+		// "nothing to commit" is not a real error — git exits 1 in that case
+		fmt.Printf("auto-commit: %s\n", string(out))
+	} else {
+		fmt.Printf("auto-committed: %s\n", msg)
+	}
+}
+
+// appendToNotes writes findings to the Obsidian vault. Errors are warnings only — never blocks finish.
+func appendToNotes(db *sql.DB, taskID int64, output, status string) {
+	cfg, err := config.Load()
+	if err != nil || cfg.VaultPath == "" {
+		return
+	}
+	task, err := store.GetTask(db, taskID)
+	if err != nil || task == nil {
+		fmt.Fprintf(os.Stderr, "warning: notes: could not fetch task: %v\n", err)
+		return
+	}
+	agentID := ""
+	if task.ClaimedBy != nil {
+		agentID = *task.ClaimedBy
+	}
+	repoName := vault.RepoName()
+	if err := vault.CreateTaskNote(cfg.VaultPath, repoName, taskID, task.Title, task.Description, status, agentID); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: vault: could not create task note: %v\n", err)
+	}
+	if err := vault.AppendFindings(cfg.VaultPath, repoName, taskID, output, status); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: vault: could not append findings: %v\n", err)
 	}
 }

@@ -10,9 +10,10 @@ For all CLI commands, see [`commands.md`](./commands.md).
 
 1. Claim the next available task
 2. Check if a plan exists — if not, write one
-3. Do the work described in the task
-4. Mark the task `finished` (or `error` if it fails)
-5. If no tasks are available, say so and stop
+3. Check the vault task note for any prior context (if a vault is configured)
+4. Do the work described in the task
+5. Ask the user to confirm the work is actually done before marking it `finished` (mark it `error` immediately if it fails — no confirmation needed for that)
+6. Claim the next task and repeat — stop only when there are no available tasks
 
 ## Task statuses
 
@@ -52,13 +53,25 @@ cd GoCLI && go run ./cmd/... plan --id <id> --plan "your approach"
 
 Keep the plan concise — what you intend to do and why.
 
-### 3. Do the work
+> The `plan` command automatically creates and writes to the vault task note (`task-N.md`) if a vault is configured — no extra steps needed.
+
+### 3. Check the vault task note
+
+If a vault is configured, a task note may exist at:
+
+```
+<vault>/AgentSynch/<repo>/tasks/task-N.md
+```
+
+Check it for prior context — previous agent findings, partial work, or notes left by the user. Also check `<vault>/AgentSynch/<repo>/codebase.md` for architecture/pattern context if it exists.
+
+### 4. Do the work
 
 Execute whatever the task's `title` and `description` ask for.
 
-### 4. Mark the task complete
+### 5. Mark the task complete
 
-On success:
+On success, do not run `finish` right away. First tell the user what you did and ask them to confirm the task is actually done and working. Only run `finish` after they confirm:
 ```bash
 cd GoCLI && go run ./cmd/... finish --id <id>
 cd GoCLI && go run ./cmd/... finish --id <id> --output "optional summary"
@@ -68,6 +81,8 @@ On failure:
 ```bash
 cd GoCLI && go run ./cmd/... finish --id <id> --error "what went wrong"
 ```
+
+> The `finish` command automatically appends findings to the vault task note if a vault is configured — no extra steps needed.
 
 ## Adding new tasks
 
@@ -99,7 +114,7 @@ When you run `finish`, the CLI automatically pushes the branch to origin so the 
 
 ## Important rules
 
-- Only claim **one task per session**. Claim it, finish it, then stop.
 - Do not modify tasks claimed by other agents.
 - If a task asks you to create files, create them in the project root unless the task specifies otherwise.
 - If you are unsure what a task wants, make a reasonable interpretation and note it in `output`.
+- Before `finish` auto-commits and pushes any uncommitted changes, it must ask the user for yes/no confirmation first — never auto-commit/push silently.

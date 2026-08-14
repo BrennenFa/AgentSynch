@@ -3,13 +3,17 @@ package tui
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"agentsynch/internal/objects"
 	"agentsynch/internal/store"
+	"agentsynch/internal/worker"
 )
 
 type reapMsgReceived string
@@ -27,6 +31,36 @@ type tasksLoadedMsg struct {
 	err   error
 }
 
+type previewLoadedMsg struct {
+	tab    int
+	cursor int
+	text   string
+}
+
+type spawnResultMsg struct{ err error }
+
+type taskAddedMsg struct{ err error }
+
+func addTaskCmd(db *sql.DB, title, desc string) tea.Cmd {
+	return func() tea.Msg {
+		now := time.Now().UTC().Format(time.RFC3339)
+		task := objects.Task{
+			Title:       title,
+			Description: desc,
+			Status:      "available",
+			CreatedAt:   now,
+		}
+		_, err := store.AddTask(db, task)
+		return taskAddedMsg{err: err}
+	}
+}
+
+func spawnAgentCmd(db *sql.DB) tea.Cmd {
+	return func() tea.Msg {
+		return spawnResultMsg{err: worker.SpawnAgent(db)}
+	}
+}
+
 func tick() tea.Cmd {
 	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
 		return tickMsg(t)
@@ -40,6 +74,66 @@ func loadTasks(db *sql.DB) tea.Cmd {
 	}
 }
 
+// loadPreview captures the tmux pane for the currently selected task.
+// tab/cursor are stamped onto the result so a stale reply arriving after
+// the user has switched tabs or moved the cursor can be discarded instead
+// of being applied to the wrong selection.
+func loadPreview(tasks []objects.Task, tab, cursor int) tea.Cmd {
+	return func() tea.Msg {
+		if cursor < 0 || cursor >= len(tasks) {
+			return previewLoadedMsg{tab: tab, cursor: cursor, text: ""}
+		}
+		t := tasks[cursor]
+		if t.TmuxWindow == nil {
+			return previewLoadedMsg{tab: tab, cursor: cursor, text: ""}
+		}
+		target := fmt.Sprintf("agentsynch:%s", *t.TmuxWindow)
+		out, err := exec.Command("tmux", "capture-pane", "-t", target, "-p").Output()
+		if err != nil {
+			return previewLoadedMsg{tab: tab, cursor: cursor, text: ""}
+		}
+		// strip trailing blank lines
+		lines := strings.Split(string(out), "\n")
+		last := len(lines)
+		for last > 0 && strings.TrimSpace(lines[last-1]) == "" {
+			last--
+		}
+		return previewLoadedMsg{tab: tab, cursor: cursor, text: strings.Join(lines[:last], "\n")}
+	}
+}
+
+// resyncCursor re-derives a list cursor after a reload by following the
+// previously-selected task ID rather than trusting a raw index, which can
+// point at the wrong row (or past the end) once the underlying list has
+// been reordered, grown, or shrunk. Returns the new cursor and the ID now
+// under it (0 if the list is empty).
+func resyncCursor(list []objects.Task, cursor int, selectedID int64) (int, int64) {
+	if selectedID != 0 {
+		for i, t := range list {
+			if t.ID == selectedID {
+				return i, selectedID
+			}
+		}
+	}
+	if cursor >= len(list) {
+		cursor = len(list) - 1
+	}
+	if cursor < 0 {
+		cursor = 0
+	}
+	if len(list) == 0 {
+		return 0, 0
+	}
+	return cursor, list[cursor].ID
+}
+
+func (m model) activePreviewCmd() tea.Cmd {
+	if m.activeTab == 0 {
+		return loadPreview(m.tasks, 0, m.cursor)
+	}
+	return loadPreview(byStatus(m.tasks, "claimed"), 1, m.agentCursor)
+}
+
 func (m model) Init() tea.Cmd {
 	return tea.Batch(loadTasks(m.db), tick(), waitForReap(m.reapCh))
 }
@@ -47,8 +141,25 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
+
+	case previewLoadedMsg:
+		curCursor := m.cursor
+		if m.activeTab == 1 {
+			curCursor = m.agentCursor
+		}
+		if msg.tab != m.activeTab || msg.cursor != curCursor {
+			// stale reply from a tab/selection we've since navigated away from
+			return m, nil
+		}
+		m.preview = msg.text
+		return m, nil
+
 	case tickMsg:
-		return m, tea.Batch(loadTasks(m.db), tick())
+		return m, tea.Batch(loadTasks(m.db), tick(), m.activePreviewCmd())
 
 	case reapMsgReceived:
 		m.reapMsg = string(msg)
@@ -60,16 +171,111 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.tasks = msg.tasks
 			m.err = ""
+			m.cursor, m.selectedID = resyncCursor(m.tasks, m.cursor, m.selectedID)
+			agents := byStatus(m.tasks, "claimed")
+			m.agentCursor, m.selectedAgentID = resyncCursor(agents, m.agentCursor, m.selectedAgentID)
 		}
-		return m, nil
+		return m, m.activePreviewCmd()
+
+	case spawnResultMsg:
+		if msg.err != nil {
+			m.err = msg.err.Error()
+		}
+		return m, loadTasks(m.db)
+
+	case taskAddedMsg:
+		if msg.err != nil {
+			m.err = "add failed: " + msg.err.Error()
+		} else {
+			m.err = ""
+		}
+		return m, loadTasks(m.db)
 
 	case tea.KeyMsg:
+		// ── add-task form ─────────────────────────────────────────────────────
+		if m.addingTask {
+			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
+			case "esc":
+				m.addingTask = false
+				m.titleInput = ""
+				m.descInput = ""
+				m.formField = 0
+				m.err = ""
+			case "tab":
+				m.formField = (m.formField + 1) % 2
+			case "enter":
+				title := strings.TrimSpace(m.titleInput)
+				if title == "" {
+					m.err = "title is required"
+				} else {
+					m.addingTask = false
+					m.err = ""
+					return m, addTaskCmd(m.db, title, m.descInput)
+				}
+			case "backspace":
+				if m.formField == 0 {
+					runes := []rune(m.titleInput)
+					if len(runes) > 0 {
+						m.titleInput = string(runes[:len(runes)-1])
+					}
+				} else {
+					runes := []rune(m.descInput)
+					if len(runes) > 0 {
+						m.descInput = string(runes[:len(runes)-1])
+					}
+				}
+			default:
+				s := msg.String()
+				if msg.Type == tea.KeyRunes || s == " " {
+					if m.formField == 0 {
+						m.titleInput += s
+					} else {
+						m.descInput += s
+					}
+				}
+			}
+			return m, nil
+		}
+
+		// ── kill-agent confirmation ───────────────────────────────────────────
+		if m.confirmingKill {
+			agents := byStatus(m.tasks, "claimed")
+			switch msg.String() {
+			case "y":
+				if m.agentCursor < len(agents) {
+					agent := agents[m.agentCursor]
+					if agent.TmuxWindow != nil {
+						target := fmt.Sprintf("agentsynch:%s", *agent.TmuxWindow)
+						exec.Command("tmux", "kill-window", "-t", target).Run() //nolint:errcheck
+					}
+					if err := store.ResetTask(m.db, agent.ID); err != nil {
+						m.err = "reset failed: " + err.Error()
+					} else {
+						m.err = ""
+					}
+				}
+				m.confirmingKill = false
+				return m, loadTasks(m.db)
+			default:
+				m.confirmingKill = false
+				m.err = ""
+			}
+			return m, nil
+		}
+
+		// ── delete confirmation ───────────────────────────────────────────────
 		if m.confirming {
 			switch msg.String() {
 			case "y":
 				if m.cursor < len(m.tasks) {
-					id := m.tasks[m.cursor].ID
-					if err := store.DeleteTask(m.db, id); err != nil {
+					task := m.tasks[m.cursor]
+					if task.TmuxWindow != nil {
+						target := fmt.Sprintf("agentsynch:%s", *task.TmuxWindow)
+						exec.Command("tmux", "kill-window", "-t", target).Run() //nolint:errcheck
+					}
+					if err := store.DeleteTask(m.db, task.ID); err != nil {
 						m.err = "delete failed: " + err.Error()
 					} else {
 						m.err = ""
@@ -84,36 +290,147 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		// ── normal key handling ───────────────────────────────────────────────
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+
+		case "tab":
+			m.activeTab = (m.activeTab + 1) % 2
+			m.preview = ""
+			return m, m.activePreviewCmd()
+
 		case "j", "down":
-			if m.cursor < len(m.tasks)-1 {
-				m.cursor++
+			if m.activeTab == 0 {
+				if m.cursor < len(m.tasks)-1 {
+					m.cursor++
+					m.selectedID = m.tasks[m.cursor].ID
+					m.preview = ""
+					return m, loadPreview(m.tasks, 0, m.cursor)
+				}
+			} else {
+				agents := byStatus(m.tasks, "claimed")
+				if m.agentCursor < len(agents)-1 {
+					m.agentCursor++
+					m.selectedAgentID = agents[m.agentCursor].ID
+					m.preview = ""
+					return m, loadPreview(agents, 1, m.agentCursor)
+				}
 			}
+
 		case "k", "up":
-			if m.cursor > 0 {
-				m.cursor--
+			if m.activeTab == 0 {
+				if m.cursor > 0 {
+					m.cursor--
+					m.selectedID = m.tasks[m.cursor].ID
+					m.preview = ""
+					return m, loadPreview(m.tasks, 0, m.cursor)
+				}
+			} else {
+				if m.agentCursor > 0 {
+					m.agentCursor--
+					agents := byStatus(m.tasks, "claimed")
+					m.selectedAgentID = agents[m.agentCursor].ID
+					m.preview = ""
+					return m, loadPreview(agents, 1, m.agentCursor)
+				}
 			}
-		case "a":
-			if m.cursor >= len(m.tasks) {
+
+		case "n":
+			if m.activeTab == 0 {
+				// add task — tasks tab
+				m.addingTask = true
+				m.titleInput = ""
+				m.descInput = ""
+				m.formField = 0
+				m.err = ""
 				return m, nil
 			}
-			task := m.tasks[m.cursor]
-			if task.TmuxWindow == nil {
-				m.err = "task has no tmux window"
+			// spawn agent — agents tab
+			if len(byStatus(m.tasks, "available")) == 0 {
+				m.err = "no available tasks"
+				return m, nil
+			}
+			return m, spawnAgentCmd(m.db)
+
+		case "o":
+			// open tmux session in a new Terminal window (once; reuses if already open)
+			script := `tell application "Terminal" to do script "tmux attach -t agentsynch"`
+			if err := exec.Command("osascript", "-e", script).Run(); err != nil {
+				m.err = err.Error()
 			} else {
-				target := fmt.Sprintf("agentsynch:%s", *task.TmuxWindow)
-				script := fmt.Sprintf(`tell application "Terminal" to do script "tmux attach -t %s"`, target)
-				if err := exec.Command("osascript", "-e", script).Run(); err != nil {
+				m.err = ""
+			}
+
+		case "a":
+			// switch the active window in the already-open tmux terminal
+			var task objects.Task
+			var found bool
+			if m.activeTab == 0 {
+				if m.cursor < len(m.tasks) {
+					task = m.tasks[m.cursor]
+					found = true
+				}
+			} else {
+				agents := byStatus(m.tasks, "claimed")
+				if m.agentCursor < len(agents) {
+					task = agents[m.agentCursor]
+					found = true
+				}
+			}
+			if !found {
+				return m, nil
+			}
+			if task.TmuxWindow == nil {
+				m.err = "no tmux window for this task"
+			} else {
+				if err := exec.Command("tmux", "select-window", "-t", fmt.Sprintf("agentsynch:%s", *task.TmuxWindow)).Run(); err != nil {
 					m.err = err.Error()
 				} else {
 					m.err = ""
 				}
 			}
+
 		case "d":
+			// delete — tasks tab only
+			if m.activeTab != 0 {
+				return m, nil
+			}
 			if m.cursor < len(m.tasks) {
 				m.confirming = true
+				m.err = ""
+			}
+
+		case "x":
+			// kill agent — agents tab only
+			if m.activeTab != 1 {
+				return m, nil
+			}
+			agents := byStatus(m.tasks, "claimed")
+			if m.agentCursor < len(agents) {
+				m.confirmingKill = true
+				m.err = ""
+			}
+
+		case "p":
+			// open task note in Obsidian — tasks tab only
+			if m.activeTab != 0 {
+				return m, nil
+			}
+			if m.vaultPath == "" {
+				m.err = "no vault configured"
+				return m, nil
+			}
+			if m.cursor >= len(m.tasks) {
+				return m, nil
+			}
+			task := m.tasks[m.cursor]
+			vaultName := filepath.Base(m.vaultPath)
+			relFile := filepath.Join("AgentSynch", m.repoName, "tasks", fmt.Sprintf("task-%d.md", task.ID))
+			obsidianURL := fmt.Sprintf("obsidian://open?vault=%s&file=%s", url.QueryEscape(vaultName), url.QueryEscape(relFile))
+			if err := exec.Command("open", obsidianURL).Run(); err != nil {
+				m.err = err.Error()
+			} else {
 				m.err = ""
 			}
 		}

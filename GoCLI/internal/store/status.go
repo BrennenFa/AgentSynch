@@ -25,17 +25,6 @@ func ErrorTask(db *sql.DB, id int64, errMsg string) error {
 	return validateResults(result, err, id, "claimed")
 }
 
-func WritePlan(db *sql.DB, id int64, plan string) error {
-
-	// add in a plan for how the task will be completed
-
-	result, err := db.Exec(
-		`UPDATE tasks SET plan = ? WHERE id = ? AND status = 'claimed'`,
-		plan, id,
-	)
-	return validateResults(result, err, id, "claimed")
-}
-
 // SetBranchName records the branch an agent created. Only valid on claimed tasks.
 func SetBranchName(db *sql.DB, id int64, branchName string) error {
 	result, err := db.Exec(
@@ -61,4 +50,14 @@ func ArchiveTask(db *sql.DB, id int64) error {
 		id,
 	)
 	return validateResults(result, err, id, "finished or error")
+}
+
+// ResetTask clears agent ownership and resets a claimed task back to available.
+func ResetTask(db *sql.DB, id int64) error {
+	result, err := db.Exec(
+		`UPDATE tasks SET status = 'available', claimed_by = NULL,
+         claimed_at = NULL, tmux_window = NULL WHERE id = ? AND status = 'claimed'`,
+		id,
+	)
+	return validateResults(result, err, id, "claimed")
 }

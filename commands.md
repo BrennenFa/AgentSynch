@@ -7,29 +7,63 @@ cd GoCLI && go run ./cmd/... <command>
 
 ---
 
+## tui
+Open the live dashboard. Shows all tasks, runs the reaper and GitHub worker in the background.
+
+```
+go run ./cmd/... tui
+```
+
+**Keybindings:**
+- `j/k` or `↑/↓` — navigate tasks
+- `a` — attach to the task's tmux window in Terminal
+- `d` — delete task (prompts for confirmation)
+- `q` / `ctrl+c` — quit
+
+---
+
+## worker
+Poll for available tasks and run each one in a tmux window. Requires tmux.
+
+```
+go run ./cmd/... worker
+go run ./cmd/... worker --interval 10s
+```
+
+---
+
+## add
+Add a new task.
+
+```
+go run ./cmd/... add --title "short name" --description "what needs to be done"
+go run ./cmd/... add --title "short name" --description "what needs to be done" --plan "approach"
+```
+
+---
+
 ## claim
-Atomically claim the next task. Run this first.
+Atomically claim the next available task.
 
 ```
 go run ./cmd/... claim
 ```
 
-Tries to claim the first `available` task (worker mode). If none exist, falls back to the first `validating` task with no assigned validator (validator mode). Prints the task ID, title, and your agent ID. If both queues are empty, prints `no available tasks`.
+---
 
-**Worker mode** — you execute the task:
-```
-claimed task-5: Fix login bug (agent: agent-mbp-1234)
-```
+## finish
+Mark a claimed task as finished or error. Pushes the branch and opens a GitHub PR or issue.
 
-**Validator mode** — you review the work and call `validate`:
 ```
-claimed task-5 for validation: Fix login bug (agent: agent-mbp-5678)
+go run ./cmd/... finish --id <id>
+go run ./cmd/... finish --id <id> --output "summary of what was done"
+go run ./cmd/... finish --id <id> --error "what went wrong"
 ```
 
 ---
 
 ## plan
-Write a plan for a claimed task. Required before moving to `in_progress` if no plan exists.
+Write a plan for a claimed task.
 
 ```
 go run ./cmd/... plan --id <id> --plan "your approach"
@@ -37,74 +71,9 @@ go run ./cmd/... plan --id <id> --plan "your approach"
 
 ---
 
-## finish
-Mark a claimed task as finished or error.
-
-```
-go run ./cmd/... finish --id <id>
-go run ./cmd/... finish --id <id> --output "optional summary"
-go run ./cmd/... finish --id <id> --error "what went wrong"
-```
-
----
-
-## add
-Add a new task. `--plan` is optional — if provided the agent will skip planning and execute directly. Use `--same-branch` for trivial tasks that don't need a new git branch.
-
-```
-go run ./cmd/... add --title "short name" --description "what needs to be done"
-go run ./cmd/... add --title "short name" --description "what needs to be done" --plan "approach"
-go run ./cmd/... add --title "short name" --description "what needs to be done" --same-branch
-```
-
----
-
-## list
-List all tasks and their current status. Archived tasks are hidden by default; use `--all` to include them.
-
-```
-go run ./cmd/... list
-go run ./cmd/... list --all
-```
-
----
-
 ## set-branch
-Record the git branch created for a claimed task. Call this after `git checkout -b <branch>` and before `finish`. Enables the server to open a GitHub PR on completion.
+Manually record the branch name for a claimed task. Only needed if automatic worktree creation failed.
 
 ```
 go run ./cmd/... set-branch --id <id> --name <branch-name>
 ```
-
----
-
-## archive
-Manually archive a finished or error task. Normally done automatically by the server after GH automation runs.
-
-```
-go run ./cmd/... archive --id <id>
-```
-
----
-
-## validate
-Approve or reject a task that is in `validating` status. Only used when you claimed a task **for validation**.
-
-```
-go run ./cmd/... validate --id <id>
-go run ./cmd/... validate --id <id> --reject "reason the work needs to be redone"
-```
-
-Approving moves the task to `finished` and unblocks any dependents. Rejecting resets it to `available` with an error note so an agent can redo it.
-
----
-
-## Statuses
-
-| Status       | Meaning                                                    |
-|--------------|------------------------------------------------------------|
-| `available`  | Ready to be claimed                                        |
-| `claimed`    | An agent is actively working on it                         |
-| `finished`   | Work is complete                                           |
-| `error`      | Task failed                                                |
-| `archived`   | Done and GH-processed; hidden from normal views (`list`, TUI) |

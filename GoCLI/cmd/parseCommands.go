@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"time"
 
 	"agentsynch/internal/server"
@@ -17,12 +18,21 @@ func main() {
 		fmt.Fprintln(os.Stderr, "commands:")
 		fmt.Fprintln(os.Stderr, "  add          add a new task")
 		fmt.Fprintln(os.Stderr, "  claim        claim the next available task")
+		fmt.Fprintln(os.Stderr, "  config       view or set configuration (e.g. vault path)")
 		fmt.Fprintln(os.Stderr, "  finish       mark a claimed task as finished or error")
-		fmt.Fprintln(os.Stderr, "  plan         write a plan for a claimed task")
 		fmt.Fprintln(os.Stderr, "  set-branch   record the branch created for a claimed task")
 		fmt.Fprintln(os.Stderr, "  tui          open the live dashboard (runs reaper + github worker)")
 		fmt.Fprintln(os.Stderr, "  worker       poll for tasks and run them in tmux windows")
 		os.Exit(1)
+	}
+
+	// 1. config is not the first command --- sets directories (db + obsidain), otherwise falls back on defaults
+	// if it is a repo, validate that there is a current repo
+	if os.Args[1] != "config" {
+		if _, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err != nil {
+			fmt.Fprintln(os.Stderr, "agentsynch: not inside a git repository — run this command from within a project checkout")
+			os.Exit(1)
+		}
 	}
 
 	switch os.Args[1] {
@@ -30,18 +40,12 @@ func main() {
 		agentcmds.Add()
 	case "claim":
 		agentcmds.Claim()
+	case "config":
+		agentcmds.Config()
 	case "finish":
 		agentcmds.Finish()
-	case "plan":
-		agentcmds.Plan()
 	case "set-branch":
-<<<<<<< HEAD
 		agentcmds.SetBranch()
-=======
-		commands.SetBranch()
-	case "archive":
-		commands.Archive()
->>>>>>> main
 	case "tui":
 		server.TUI()
 	case "worker":
